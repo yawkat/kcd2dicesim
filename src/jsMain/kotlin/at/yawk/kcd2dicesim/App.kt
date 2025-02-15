@@ -4,13 +4,19 @@ import io.kvision.Application
 import io.kvision.BootstrapCssModule
 import io.kvision.BootstrapModule
 import io.kvision.CoreModule
-import io.kvision.form.FormHorizontalRatio
 import io.kvision.form.text.text
+import io.kvision.html.Button
 import io.kvision.html.Div
 import io.kvision.html.InputType
 import io.kvision.html.button
 import io.kvision.html.div
+import io.kvision.html.li
+import io.kvision.html.link
+import io.kvision.html.p
 import io.kvision.html.span
+import io.kvision.html.ul
+import io.kvision.modal.Modal
+import io.kvision.modal.ModalSize
 import io.kvision.module
 import io.kvision.panel.root
 import io.kvision.startApplication
@@ -34,11 +40,39 @@ class App : Application() {
         state["round"]?.let { if (it != -1) round.setState(Score(it as Int)) }
         root("kcd2dicesim") {
             addCssClass("container")
+            val help = Modal("Help", size = ModalSize.LARGE) {
+                p(
+                    "This site simulates the dice minigame in <a href='https://store.steampowered.com/app/1771300/Kingdom_Come_Deliverance_II/'>Kingdom Come: Deliverance II</a>. For a given set of thrown dice, it determines possible moves and recommends those with the best <a href='https://en.wikipedia.org/wiki/Expected_value'>expected value</a> (EV).",
+                    rich = true
+                )
+                p("There are three score fields:")
+                ul {
+                    li("The 'Goal' field contains the maximum number of points you wish to reach, e.g. 3000 for a Masters-level game.")
+                    li("The 'Scored' field contains the number of points you have already 'locked in' / scored. In combination with the goal, this determines how many points you still need. The simulation will consider points beyond this value (goal - scored) worthless.")
+                    li("The 'Round' field contains the number of points on dice you've set aside in the current round. If you go bust, these points may disappear.")
+                }
+                p("Below the score fields is the dice selection. Each column represents one die. After a throw, select the number of eyes for all the dice here. There's six columns, but if a throw contained fewer than six dice, just leave some columns as '/'. Those dice will be ignored.")
+                p("Once you've entered all the dice values, press 'Think'. This button will simulate the moves. It may take a few seconds to compute. Once the simulation completes, a suggested move is displayed. The dice to be held get a green background. Next to the 'Think' button, the expected value is displayed, along with whether you should pass or continue with more throws.")
+                p("The 'Accept' button applies the suggested throw to the scores. The value of the held dice will be added to the 'Round' score. If the suggestion was to pass, the 'Round' score is added to the 'Scored' score and the inputs are reset for a new round.")
+                p {
+                    link("Contribute on GitHub", "https://github.com/yawkat/kcd2dicesim")
+                }
+                addButton(Button("ok") {
+                    onClick {
+                        this@Modal.hide()
+                    }
+                })
+            }
             text(InputType.NUMBER, label = "Goal") {
                 addCssClass("input-group")
                 flabel.addCssClass("input-group-text")
                 flabel.removeCssClass("form-label")
                 bindTo(goal.toStringValue())
+                button("?", className = "btn btn-secondary") {
+                    onClick {
+                        help.show()
+                    }
+                }
             }
             text(InputType.NUMBER, label = "Scored") {
                 addCssClass("input-group")

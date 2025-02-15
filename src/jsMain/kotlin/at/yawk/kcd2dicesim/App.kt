@@ -26,18 +26,18 @@ import kotlin.math.roundToInt
 
 private const val NUM_DICE = 6
 
-private fun ObservableValue<Score?>.toStringValue() =
-    map({ it?.toInt()?.toString() ?: "" }, { it.toIntOrNull()?.let { i -> Score(i) } })
+private fun ObservableValue<Int?>.toStringValue() =
+    map({ it?.toString() ?: "" }, { it.toIntOrNull() })
 
 class App : Application() {
-    private val goal = ObservableValue<Score?>(Score(3000))
-    private val scored = ObservableValue<Score?>(Score(0))
-    private val round = ObservableValue<Score?>(Score(0))
+    private val goal = ObservableValue<Int?>(3000)
+    private val scored = ObservableValue<Int?>(0)
+    private val round = ObservableValue<Int?>(0)
     private val dice = Array<ObservableValue<Byte?>>(NUM_DICE) { ObservableValue(null) }
 
     override fun start(state: Map<String, Any>) {
-        state["goal"]?.let { if (it != -1) goal.setState(Score(it as Int)) }
-        state["round"]?.let { if (it != -1) round.setState(Score(it as Int)) }
+        state["goal"]?.let { if (it != -1) goal.setState(it as Int) }
+        state["round"]?.let { if (it != -1) round.setState(it as Int) }
         root("kcd2dicesim") {
             addCssClass("container")
             val help = Modal("Help", size = ModalSize.LARGE) {
@@ -87,7 +87,7 @@ class App : Application() {
                 bindTo(round.toStringValue())
                 button("Bust", className = "btn btn-danger") {
                     onClick {
-                        round.value = Score(0)
+                        round.value = 0
                     }
                 }
             }
@@ -123,8 +123,8 @@ class App : Application() {
                 val moveObs = ObservableValue<EvCalculator.Move?>(null)
                 val evDisplay = span(className = "col")
                 think.onClick {
-                    val bestEv = EvCalculator((goal.value ?: Score(3000)) - (scored.value ?: Score(0)))
-                        .bestEv(round.value ?: Score(0), DiceThrow(*dice.mapNotNull { it.value }.toByteArray())) {
+                    val bestEv = EvCalculator(Score((goal.value ?: 3000) - (scored.value ?: 0)))
+                        .bestEv(Score(round.value ?: 0), DiceThrow(*dice.mapNotNull { it.value }.toByteArray())) {
                             moveObs.value = it
                         }
                     val move = moveObs.value
@@ -148,13 +148,16 @@ class App : Application() {
                     onClick {
                         val move = moveObs.value
                         if (move != null) {
-                            round.value = (round.value ?: Score(0)) + move.keep.multiScore()
+                            round.value = (round.value ?: 0) + move.keep.multiScore().toInt()
                             if (!move.shouldContinue) {
-                                scored.value = (scored.value ?: Score(0)) + (round.value ?: Score(0))
-                                round.value = Score(0)
+                                scored.value = (scored.value ?: 0) + (round.value ?: 0)
+                                round.value = 0
                             }
                             for (obs in dice) {
                                 obs.value = null
+                            }
+                            for (column in diceColumns) {
+                                column.removeCssClass("bg-success-subtle")
                             }
                             evDisplay.content = ""
                             moveObs.value = null

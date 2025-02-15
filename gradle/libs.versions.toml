@@ -1,0 +1,15 @@
+[versions]
+kvision = "8.2.0"
+kotlin = "2.1.0"
+
+[libraries]
+kvision = { group = "io.kvision", name = "kvision", version.ref = "kvision" }
+kvision-bootstrap = { group = "io.kvision", name = "kvision-bootstrap", version.ref = "kvision" }
+kvision-testutils = { group = "io.kvision", name = "kvision-testutils", version.ref = "kvision" }
+kvision-state = { group = "io.kvision", name = "kvision-state", version.ref = "kvision" }
+kotlin-test-js = { group = "org.jetbrains.kotlin", name = "kotlin-test-js", version.ref = "kotlin" }
+
+[plugins]
+kvision = { id = "io.kvision", version.ref = "kvision" }
+kotlin-plugin-serialization = { id = "org.jetbrains.kotlin.plugin.serialization", version.ref = "kotlin" }
+kotlin-multiplatform = { id = "org.jetbrains.kotlin.multiplatform", version.ref = "kotlin" }

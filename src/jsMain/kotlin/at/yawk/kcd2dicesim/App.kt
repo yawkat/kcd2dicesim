@@ -22,6 +22,7 @@ import io.kvision.panel.root
 import io.kvision.startApplication
 import io.kvision.state.ObservableValue
 import io.kvision.state.bindTo
+import kotlinx.browser.window
 import kotlin.math.roundToInt
 
 private const val NUM_DICE = 6
@@ -164,6 +165,9 @@ class App : Application() {
                         }
                     }
                 }
+            }
+            if (window.location.host != "kcd2dicesim.yawk.at") {
+                div(className = "alert alert-info mt-2", content = "The latest version of this tool is always available at <a href='https://kcd2dicesim.yawk.at/'>kcd2dicesim.yawk.at</a>.", rich = true)
             }
         }
     }

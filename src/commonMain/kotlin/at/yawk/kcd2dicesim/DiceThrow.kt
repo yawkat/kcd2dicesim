@@ -1,5 +1,7 @@
 package at.yawk.kcd2dicesim
 
+import kotlin.jvm.JvmInline
+
 val COMBINATION_COUNTS = intArrayOf(
     1,
     6,
@@ -10,6 +12,7 @@ val COMBINATION_COUNTS = intArrayOf(
     6 * 6 * 6 * 6 * 6 * 6,
 )
 
+@JvmInline
 value class DiceThrow private constructor(val value: Int) {
     constructor(i: Int, numberOfDice: Int) : this(i + numberOfDice * LENGTH_OFFSET) {
         require(numberOfDice >= 0)

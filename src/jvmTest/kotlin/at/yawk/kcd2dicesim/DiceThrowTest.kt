@@ -1,10 +1,9 @@
 package at.yawk.kcd2dicesim
 
-import io.kvision.test.SimpleSpec
-import kotlin.test.Test
-import kotlin.test.assertEquals
+import org.junit.jupiter.api.Assertions.assertEquals
+import org.junit.jupiter.api.Test
 
-class DiceThrowTest : SimpleSpec {
+class DiceThrowTest {
     @Test
     fun sorted() {
         assertEquals(

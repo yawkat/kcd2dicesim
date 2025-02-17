@@ -12,6 +12,7 @@ repositories {
 }
 
 kotlin {
+    jvm()
     js(IR) {
         browser {
             commonWebpackConfig {
@@ -35,4 +36,11 @@ kotlin {
         implementation(libs.kotlin.test.js)
         implementation(libs.kvision.testutils)
     }
+    sourceSets["jvmTest"].dependencies {
+        implementation(libs.junit.jupiter.engine)
+    }
+}
+
+tasks.named<Test>("jvmTest") {
+    useJUnitPlatform()
 }

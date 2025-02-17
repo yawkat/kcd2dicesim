@@ -1,7 +1,10 @@
 package at.yawk.kcd2dicesim
 
+import kotlin.jvm.JvmInline
+
 private const val SCORE_DIVIDER = 50
 
+@JvmInline
 value class Score private constructor(private val value: Byte) : Comparable<Score> {
     constructor(value: Int) : this((value / SCORE_DIVIDER).toByte())
 

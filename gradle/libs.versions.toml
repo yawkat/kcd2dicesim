@@ -1,6 +1,7 @@
 [versions]
 kvision = "8.2.0"
 kotlin = "2.1.0"
+junit = "5.11.4"
 
 [libraries]
 kvision = { group = "io.kvision", name = "kvision", version.ref = "kvision" }
@@ -8,6 +9,7 @@ kvision-bootstrap = { group = "io.kvision", name = "kvision-bootstrap", version.
 kvision-testutils = { group = "io.kvision", name = "kvision-testutils", version.ref = "kvision" }
 kvision-state = { group = "io.kvision", name = "kvision-state", version.ref = "kvision" }
 kotlin-test-js = { group = "org.jetbrains.kotlin", name = "kotlin-test-js", version.ref = "kotlin" }
+junit-jupiter-engine = { group = "org.junit.jupiter", name = "junit-jupiter-engine", version.ref = "junit" }
 
 [plugins]
 kvision = { id = "io.kvision", version.ref = "kvision" }

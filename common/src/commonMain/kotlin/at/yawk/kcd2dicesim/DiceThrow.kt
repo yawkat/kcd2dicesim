@@ -45,6 +45,8 @@ value class DiceThrow private constructor(val value: Int) {
 
     override fun toString() = "DiceThrow" + (toArray().joinToString(",", "[", "]"))
 
+    fun toCompactInt() = value
+
     companion object {
         private const val CACHE_SIZE = 1 shl (3 * 6)
 
@@ -125,6 +127,8 @@ value class DiceThrow private constructor(val value: Int) {
                 }
             }
         }
+
+        fun fromCompactInt(int: Int) = DiceThrow(int)
     }
 
     private fun sort0(): DiceThrow {

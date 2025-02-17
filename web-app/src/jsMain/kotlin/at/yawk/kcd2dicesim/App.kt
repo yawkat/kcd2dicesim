@@ -4,6 +4,7 @@ import io.kvision.Application
 import io.kvision.BootstrapCssModule
 import io.kvision.BootstrapModule
 import io.kvision.CoreModule
+import io.kvision.core.onClick
 import io.kvision.form.text.text
 import io.kvision.html.Button
 import io.kvision.html.Div
@@ -34,7 +35,8 @@ class App : Application() {
     private val goal = ObservableValue<Int?>(3000)
     private val scored = ObservableValue<Int?>(0)
     private val round = ObservableValue<Int?>(0)
-    private val dice = Array<ObservableValue<Byte?>>(NUM_DICE) { ObservableValue(null) }
+    private val diceValues = Array<ObservableValue<Byte?>>(NUM_DICE) { ObservableValue(null) }
+    private val dice = Array(NUM_DICE) { ObservableValue(SpecialDie.NORMAL_DIE) }
 
     override fun start(state: Map<String, Any>) {
         state["goal"]?.let { if (it != -1) goal.setState(it as Int) }
@@ -94,7 +96,7 @@ class App : Application() {
             }
             lateinit var diceColumns: List<Div>
             div(className = "row") {
-                diceColumns = dice.map { obs ->
+                diceColumns = diceValues.mapIndexed { diceIndex, obs ->
                     div(className = "col d-grid gap-2 pt-2 pb-2") {
                         val buttons = (0..6).map { j ->
                             button(if (j == 0) "/" else "$j") {
@@ -116,6 +118,15 @@ class App : Application() {
                                 }
                             }
                         }
+                        val diceChoice = dice[diceIndex]
+                        button("", className = "btn btn-link") {
+                            diceChoice.subscribe {
+                                text = it.name.substring(0, 1) // TODO
+                            }
+                            onClick {
+                                diceSelector(diceChoice)
+                            }
+                        }
                     }
                 }
             }
@@ -124,15 +135,26 @@ class App : Application() {
                 val moveObs = ObservableValue<EvCalculator.Move?>(null)
                 val evDisplay = span(className = "col")
                 think.onClick {
-                    val bestEv = EvCalculator(Score((goal.value ?: 3000) - (scored.value ?: 0)))
-                        .bestEv(Score(round.value ?: 0), DiceThrow(*dice.mapNotNull { it.value }.toByteArray())) {
-                            moveObs.value = it
-                        }
-                    val move = moveObs.value
+                    val typeAndValue = (0 until NUM_DICE)
+                        .map { dice[it].value to diceValues[it].value }
+                        .filter { it.second != null }
+                        .sortedBy { it.first.id }
+                    val thr = DiceThrow(*typeAndValue.mapNotNull { it.second }.toByteArray())
+                    val bagItems = typeAndValue.map { it.first }
+                    val bag = DieBag.of(bagItems)
+                    require(bag.toList() == bagItems) { "$bag $bagItems" } // should be ensured by the sort above, but double-check
+                    val (bestEv, move) = think(
+                        limit = Score((goal.value ?: 3000) - (scored.value ?: 0)),
+                        round = Score(round.value ?: 0),
+                        thr = thr,
+                        fullBag = DieBag.of(dice.map { it.value }),
+                        selectedBag = bag
+                    )
+                    moveObs.value = move
                     evDisplay.content = "EV: ${bestEv.roundToInt()} on ${if (move?.shouldContinue == true) "continue" else "PASS"}"
                     if (move != null) {
                         val remainingMoves = move.keep.toArray().toMutableList()
-                        for ((i, die) in dice.withIndex()) {
+                        for ((i, die) in diceValues.withIndex()) {
                             val col = diceColumns[i]
                             if (remainingMoves.remove(die.value)) {
                                 col.addCssClass("bg-success-subtle")
@@ -154,7 +176,7 @@ class App : Application() {
                                 scored.value = (scored.value ?: 0) + (round.value ?: 0)
                                 round.value = 0
                             }
-                            for (obs in dice) {
+                            for (obs in diceValues) {
                                 obs.value = null
                             }
                             for (column in diceColumns) {
@@ -172,6 +194,32 @@ class App : Application() {
         }
     }
 
+    private fun diceSelector(selection: ObservableValue<SpecialDie>) {
+        Modal("Dice Selection") {
+            for (die in SpecialDie.SPECIAL_DICE) {
+                div(className = "alert", content = die.name) {
+                    selection.subscribe {
+                        if (selection.value == die) {
+                            removeCssClass("alert-secondary")
+                            addCssClass("alert-primary")
+                        } else {
+                            removeCssClass("alert-primary")
+                            addCssClass("alert-secondary")
+                        }
+                    }
+                    onClick {
+                        selection.value = die
+                    }
+                }
+            }
+            addButton(Button("ok") {
+                onClick {
+                    this@Modal.hide()
+                }
+            })
+        }.show()
+    }
+
     override fun dispose(): Map<String, Any> {
         console.log("Dispos2")
         return mapOf(
@@ -180,6 +228,28 @@ class App : Application() {
             "round" to (round.getState()?.toInt() ?: -1),
         )
     }
+}
+
+private fun think(limit: Score, round: Score, thr: DiceThrow, fullBag: DieBag, selectedBag: DieBag): Pair<Double, EvCalculator.Move?> {
+    if (true) { // TODO
+        val bestEv = wasmCalculateEv(
+            limit = limit.toCompactByte(),
+            round = round.toCompactByte(),
+            thr = thr.toCompactInt(),
+            fullBagLo = fullBag.toCompactLong().toInt(),
+            fullBagHi = (fullBag.toCompactLong() ushr 32).toInt(),
+            selectedBagLo = selectedBag.toCompactLong().toInt(),
+            selectedBagHi = (selectedBag.toCompactLong() ushr 32).toInt()
+        )
+        return bestEv to EvCalculator.Move(DiceThrow.fromCompactInt(wasmGetMoveKeep()), wasmGetMoveShouldContinue())
+    }
+
+    var move: EvCalculator.Move? = null
+    val bestEv = EvCalculator(limit, fullBag)
+        .bestEv(round, thr, selectedBag) {
+            move = it
+        }
+    return bestEv to move
 }
 
 fun main() {

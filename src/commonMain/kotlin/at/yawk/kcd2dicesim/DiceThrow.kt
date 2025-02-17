@@ -14,48 +14,63 @@ val COMBINATION_COUNTS = intArrayOf(
 
 @JvmInline
 value class DiceThrow private constructor(val value: Int) {
-    constructor(i: Int, numberOfDice: Int) : this(i + numberOfDice * LENGTH_OFFSET) {
-        require(numberOfDice >= 0)
-        require(numberOfDice <= 6)
-    }
-
-    constructor(vararg values: Byte) : this(combine(values), values.size)
+    constructor(vararg values: Byte) : this(combine(values))
 
     val length: Int
-        get() = value / LENGTH_OFFSET
+        get() {
+            val highBit = value.takeHighestOneBit()
+            return if (highBit == 0) {
+                0
+            } else {
+                (highBit.countTrailingZeroBits() / 3) + 1
+            }
+        }
 
-    operator fun get(i: Int): Byte = ((value / COMBINATION_COUNTS[i]) % 6).toByte()
+    private val valid: Boolean
+        get() {
+            for (i in 0 until length) {
+                val die = get(i)
+                if (die < 0 || die > 5) {
+                    return false
+                }
+            }
+            return true
+        }
 
-    fun sorted() = SORTED_CACHE[value]
+    operator fun get(i: Int): Byte = (((value ushr (i * 3)) and 7) - 1).toByte()
+
+    fun sorted(): DiceThrow = DiceThrow(SORTED_CACHE[value])
 
     fun toArray() = ByteArray(length) { get(it) }
 
     override fun toString() = "DiceThrow" + (toArray().joinToString(",", "[", "]"))
 
     companion object {
-        private val LENGTH_OFFSET = COMBINATION_COUNTS.last()
+        private const val CACHE_SIZE = 1 shl (3 * 6)
 
-        private val ALL_THROW_COUNT = 7 * LENGTH_OFFSET
+        private val SORTED_CACHE = IntArray(CACHE_SIZE)
 
-        private val SORTED_CACHE = Array(ALL_THROW_COUNT) { i ->
-            DiceThrow(i).sort0()
-        }
-
-        private val MASK = Array(ALL_THROW_COUNT) {
+        private val MASK = Array(CACHE_SIZE) {
             val thr = DiceThrow(it)
-            Array(1 shl thr.length) { mask ->
-                thr.mask0(mask.toByte())
+            if (thr.valid) {
+                IntArray(1 shl thr.length) { mask ->
+                    thr.mask0(mask.toByte()).value
+                }
+            } else {
+                null
             }
         }
 
-        private val SINGLE_SCORE = Array(ALL_THROW_COUNT) { Score(0) }
+        private val SINGLE_SCORE = ByteArray(CACHE_SIZE)
+
+        private val MULTI_SCORE = ByteArray(CACHE_SIZE)
 
         init {
-            SINGLE_SCORE[DiceThrow(0.toByte()).value] = Score(100)
-            SINGLE_SCORE[DiceThrow(4.toByte()).value] = Score(50)
-            SINGLE_SCORE[DiceThrow(0, 1, 2, 3, 4).value] = Score(500)
-            SINGLE_SCORE[DiceThrow(1, 2, 3, 4, 5).value] = Score(750)
-            SINGLE_SCORE[DiceThrow(0, 1, 2, 3, 4, 5).value] = Score(1500)
+            SINGLE_SCORE[DiceThrow(0.toByte()).value] = Score(100).toCompactByte()
+            SINGLE_SCORE[DiceThrow(4.toByte()).value] = Score(50).toCompactByte()
+            SINGLE_SCORE[DiceThrow(0, 1, 2, 3, 4).value] = Score(500).toCompactByte()
+            SINGLE_SCORE[DiceThrow(1, 2, 3, 4, 5).value] = Score(750).toCompactByte()
+            SINGLE_SCORE[DiceThrow(0, 1, 2, 3, 4, 5).value] = Score(1500).toCompactByte()
             for (j in 0..5) {
                 val i = j.toByte()
                 val baseScore = when (j) {
@@ -67,35 +82,48 @@ value class DiceThrow private constructor(val value: Int) {
                     5 -> Score(600)
                     else -> throw AssertionError()
                 }
-                SINGLE_SCORE[DiceThrow(i, i, i).value] = baseScore
-                SINGLE_SCORE[DiceThrow(i, i, i, i).value] = baseScore * 2
-                SINGLE_SCORE[DiceThrow(i, i, i, i, i).value] = baseScore * 4
-                SINGLE_SCORE[DiceThrow(i, i, i, i, i, i).value] = baseScore * 8
+                SINGLE_SCORE[DiceThrow(i, i, i).value] = baseScore.toCompactByte()
+                SINGLE_SCORE[DiceThrow(i, i, i, i).value] = (baseScore * 2).toCompactByte()
+                SINGLE_SCORE[DiceThrow(i, i, i, i, i).value] = (baseScore * 4).toCompactByte()
+                SINGLE_SCORE[DiceThrow(i, i, i, i, i, i).value] = (baseScore * 8).toCompactByte()
             }
-            for (i in 0 until ALL_THROW_COUNT) {
+            for (i in 0 until CACHE_SIZE) {
                 val thr = DiceThrow(i)
-                SINGLE_SCORE[thr.value] = SINGLE_SCORE[thr.sorted().value]
-            }
-        }
-
-        private val MULTI_SCORE = Array(ALL_THROW_COUNT) { Score(0) }
-
-        init {
-            for (i in 0 until ALL_THROW_COUNT) {
-                MULTI_SCORE[i] = DiceThrow(i).multiScore0()
+                if (thr.valid) {
+                    val sorted = thr.sort0()
+                    SORTED_CACHE[i] = sorted.value
+                    SINGLE_SCORE[thr.value] = SINGLE_SCORE[sorted.value]
+                    MULTI_SCORE[thr.value] = thr.multiScore0().toCompactByte()
+                }
             }
         }
 
         private fun combine(arr: ByteArray): Int {
             var i = 0
             for (byte in arr.reversed()) {
-                i = i * 6 + byte
+                i = (i shl 3) + (byte + 1)
             }
             return i
         }
 
         init {
             println("DiceThrow initialized")
+        }
+
+        private fun maskForNumberOfDice(numberOfDice: Int): Int {
+            return (1 shl (numberOfDice * 3)) - 1
+        }
+
+        // internal to access private constructor
+        internal inline fun forEachThrow(numberOfDice: Int, f: (DiceThrow) -> Unit) {
+            val lo = maskForNumberOfDice(numberOfDice - 1) + 1 // this works by accident for numberOfDice == 0
+            val hi = maskForNumberOfDice(numberOfDice)
+            for (i in lo..hi) {
+                val thr = DiceThrow(i)
+                if (thr.valid) {
+                    f(thr)
+                }
+            }
         }
     }
 
@@ -104,19 +132,20 @@ value class DiceThrow private constructor(val value: Int) {
     }
 
     private fun mask0(mask: Byte): DiceThrow {
-        var masked = value % LENGTH_OFFSET
+        var masked = value
         for (i in length - 1 downTo 0) {
             val selected = ((mask.toInt() ushr i) and 1) == 1
             if (!selected) {
-                masked = masked % COMBINATION_COUNTS[i] + (masked / COMBINATION_COUNTS[i + 1]) * COMBINATION_COUNTS[i]
+                val clipMask = maskForNumberOfDice(i)
+                masked = (masked and clipMask) or ((masked ushr 3) and clipMask.inv())
             }
         }
-        return DiceThrow(masked, mask.countOneBits())
+        return DiceThrow(masked)
     }
 
-    fun mask(mask: Byte) = MASK[value][mask.toInt()]
+    fun mask(mask: Byte): DiceThrow = DiceThrow(MASK[value]!![mask.toInt()])
 
-    fun selectionScoreSingle() = SINGLE_SCORE[value]
+    fun selectionScoreSingle(): Score = Score.fromCompactByte(SINGLE_SCORE[value])
 
     private fun multiScore0(): Score {
         val direct = selectionScoreSingle()
@@ -140,5 +169,5 @@ value class DiceThrow private constructor(val value: Int) {
         return best
     }
 
-    fun multiScore() = MULTI_SCORE[value]
+    fun multiScore(): Score = Score.fromCompactByte(MULTI_SCORE[value])
 }

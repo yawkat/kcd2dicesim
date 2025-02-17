@@ -21,4 +21,8 @@ value class Score private constructor(private val value: Byte) : Comparable<Scor
     fun toCompactByte() = value
 
     override fun toString() = "Score(${toInt()})"
+
+    companion object {
+        fun fromCompactByte(value: Byte) = Score(value)
+    }
 }

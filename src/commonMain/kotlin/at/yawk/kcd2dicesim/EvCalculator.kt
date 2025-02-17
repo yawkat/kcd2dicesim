@@ -20,8 +20,7 @@ class EvCalculator(private val limit: Score) {
             return calculateEv(oldScore, 6)
         }
         var totalEv = 0.0
-        for (i in 0 until COMBINATION_COUNTS[remainingDice]) {
-            val thr = DiceThrow(i, remainingDice)
+        DiceThrow.forEachThrow(remainingDice) { thr ->
             totalEv += bestEv(oldScore, thr)
         }
         return totalEv / COMBINATION_COUNTS[remainingDice]

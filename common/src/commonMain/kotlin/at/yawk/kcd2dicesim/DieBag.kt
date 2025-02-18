@@ -10,8 +10,8 @@ import kotlin.jvm.JvmInline
  */
 @JvmInline
 value class DieBag private constructor(private val value: Long) {
-    val size: Int
-        get() = value.toInt() and ((1 shl LENGTH_BITS) - 1)
+    internal val size: Int
+        internal inline get() = value.toInt() and ((1 shl LENGTH_BITS) - 1)
 
     operator fun get(index: Int) = SpecialDie.SPECIAL_DICE[((value ushr (BITS_PER_DIE * index + LENGTH_BITS)).toInt() and DIE_MASK.toInt())]
 
@@ -21,16 +21,15 @@ value class DieBag private constructor(private val value: Long) {
 
     fun removeMask(mask: Byte): DieBag {
         var modified = value
+        var dieMask = dieMask(size - 1)
         for (i in size - 1 downTo 0) {
             if ((mask.toInt() and (1 shl i)) != 0) {
-                val dieMask = dieMask(i)
                 val lo = modified and dieMask
                 val hi = (modified ushr BITS_PER_DIE) and dieMask.inv()
-                modified = lo or hi
+                modified = (lo or hi) - 1 // -1 to fix size
             }
+            dieMask = dieMask ushr BITS_PER_DIE
         }
-        // fix size
-        modified -= mask.countOneBits().toLong()
         return DieBag(modified)
     }
 

@@ -26,6 +26,7 @@ import io.kvision.panel.root
 import io.kvision.startApplication
 import io.kvision.state.ObservableValue
 import io.kvision.state.bindTo
+import kotlinx.browser.localStorage
 import kotlinx.browser.window
 import kotlin.math.roundToInt
 
@@ -43,9 +44,23 @@ class App : Application() {
     private val round = ObservableValue<Int?>(0)
     private val diceColumns = Array(NUM_DICE) { DieColumn() }
 
-    override fun start(state: Map<String, Any>) {
-        state["goal"]?.let { if (it != -1) goal.setState(it as Int) }
-        state["round"]?.let { if (it != -1) round.setState(it as Int) }
+    override fun start() {
+        for ((i, col) in diceColumns.withIndex()) {
+            val storageKey = "die-type-$i"
+            localStorage.getItem(storageKey)?.let { name ->
+                SpecialDie.SPECIAL_DICE.find { it.name == name }
+            }?.let {
+                col.die.value = it
+            }
+            col.die.subscribe {
+                if (it == SpecialDie.NORMAL_DIE) {
+                    localStorage.removeItem(storageKey)
+                } else {
+                    localStorage.setItem(storageKey, it.name)
+                }
+            }
+        }
+
         root("kcd2dicesim") {
             addCssClass("container")
             val help = Modal("Help", size = ModalSize.LARGE) {
@@ -129,7 +144,7 @@ class App : Application() {
                                     removeCssClass("fw-bold")
                                 } else {
                                     addCssClass("fw-bold")
-                                    text = it.name.substring(0, 1) // TODO
+                                    text = it.shortName
                                 }
                             }
                             onClick {
@@ -160,7 +175,8 @@ class App : Application() {
                         selectedBag = bag
                     )
                     moveObs.value = move
-                    evDisplay.content = "EV: ${bestEv.roundToInt()} on ${if (move?.shouldContinue == true) "continue" else "PASS"}"
+                    evDisplay.content =
+                        "EV: ${bestEv.roundToInt()} on ${if (move?.shouldContinue == true) "continue" else "PASS"}"
                     if (move != null) {
                         moveScore = thr.mask(move.keepMask).multiScore()
                         for ((i, col) in workColumns.withIndex()) {
@@ -195,9 +211,16 @@ class App : Application() {
                 }
             }
             if (window.location.host != "kcd2dicesim.yawk.at") {
-                div(className = "alert alert-info mt-2", content = "The latest version of this tool is always available at <a href='https://kcd2dicesim.yawk.at/'>kcd2dicesim.yawk.at</a>.", rich = true)
+                div(
+                    className = "alert alert-info mt-2",
+                    content = "The latest version of this tool is always available at <a href='https://kcd2dicesim.yawk.at/'>kcd2dicesim.yawk.at</a>.",
+                    rich = true
+                )
             }
-            div(className = "alert alert-warning mt-2", content = "Failed to load WebAssembly backend. The application will still work but will be very slow.") {
+            div(
+                className = "alert alert-warning mt-2",
+                content = "Failed to load WebAssembly backend. The application will still work but will be very slow."
+            ) {
                 wasmAvailable.subscribe {
                     if (it) {
                         parent?.remove(this)
@@ -219,7 +242,8 @@ class App : Application() {
             text(label = "Search").bindTo(search)
             for (die in SpecialDie.SPECIAL_DICE) {
                 p(className = "alert") {
-                    span(die.name)
+                    span(die.shortName, className = "badge text-bg-secondary")
+                    span(" " + die.name)
                     if (die.devilsHead) {
                         br()
                         span("Note: Devil's Head is not yet implemented", className = "fst-italic")
@@ -251,14 +275,6 @@ class App : Application() {
         }.show()
     }
 
-    override fun dispose(): Map<String, Any> {
-        return mapOf(
-            "goal" to (goal.getState()?.toInt() ?: -1),
-            "scored" to (scored.getState()?.toInt() ?: -1),
-            "round" to (round.getState()?.toInt() ?: -1),
-        )
-    }
-
     class DieColumn {
         val value = ObservableValue<Byte?>(null)
         val die = ObservableValue(SpecialDie.NORMAL_DIE)
@@ -266,7 +282,13 @@ class App : Application() {
     }
 }
 
-private fun think(limit: Score, round: Score, thr: DiceThrow, fullBag: DieBag, selectedBag: DieBag): Pair<Double, EvCalculator.Move?> {
+private fun think(
+    limit: Score,
+    round: Score,
+    thr: DiceThrow,
+    fullBag: DieBag,
+    selectedBag: DieBag
+): Pair<Double, EvCalculator.Move?> {
     if (wasmAvailable.value) {
         val bestEv = wasmCalculateEv(
             limit = limit.toCompactByte(),

@@ -4,11 +4,14 @@ import io.kvision.Application
 import io.kvision.BootstrapCssModule
 import io.kvision.BootstrapModule
 import io.kvision.CoreModule
+import io.kvision.core.Cursor
 import io.kvision.core.onClick
 import io.kvision.form.text.text
 import io.kvision.html.Button
+import io.kvision.html.ButtonStyle
 import io.kvision.html.Div
 import io.kvision.html.InputType
+import io.kvision.html.br
 import io.kvision.html.button
 import io.kvision.html.div
 import io.kvision.html.li
@@ -73,7 +76,8 @@ class App : Application() {
                 flabel.addCssClass("input-group-text")
                 flabel.removeCssClass("form-label")
                 bindTo(goal.toStringValue())
-                button("?", className = "btn btn-secondary") {
+                button("?") {
+                    style = ButtonStyle.SECONDARY
                     onClick {
                         help.show()
                     }
@@ -90,7 +94,8 @@ class App : Application() {
                 flabel.addCssClass("input-group-text")
                 flabel.removeCssClass("form-label")
                 bindTo(round.toStringValue())
-                button("Bust", className = "btn btn-danger") {
+                button("Bust") {
+                    style = ButtonStyle.DANGER
                     onClick {
                         round.value = 0
                     }
@@ -101,7 +106,6 @@ class App : Application() {
                     col.element = div(className = "col d-grid gap-1 g-1 pt-1 pb-1") {
                         val buttons = (0..6).map { j ->
                             button(if (j == 0) "/" else "$j") {
-                                addCssClass("btn")
                                 onClick {
                                     col.value.value = if (j == 0) null else (j - 1).toByte()
                                 }
@@ -111,17 +115,22 @@ class App : Application() {
                             val selected = (v ?: -1) + 1
                             for ((i, button) in buttons.withIndex()) {
                                 if (i == selected) {
-                                    button.removeCssClass("btn-secondary")
-                                    button.addCssClass("btn-primary")
+                                    button.style = ButtonStyle.PRIMARY
                                 } else {
-                                    button.addCssClass("btn-secondary")
-                                    button.removeCssClass("btn-primary")
+                                    button.style = ButtonStyle.SECONDARY
                                 }
                             }
                         }
-                        button("", className = "btn btn-link") {
+                        button("") {
+                            style = ButtonStyle.OUTLINESECONDARY
                             col.die.subscribe {
-                                text = it.name.substring(0, 1) // TODO
+                                if (it == SpecialDie.NORMAL_DIE) {
+                                    text = "."
+                                    removeCssClass("fw-bold")
+                                } else {
+                                    addCssClass("fw-bold")
+                                    text = it.name.substring(0, 1) // TODO
+                                }
                             }
                             onClick {
                                 diceSelector(col.die)
@@ -201,10 +210,21 @@ class App : Application() {
         }
     }
 
+    private fun sanitizeForSearch(s: String): String =
+        s.lowercase().trim().replace(" ", "").replace("'", "")
+
     private fun diceSelector(selection: ObservableValue<SpecialDie>) {
-        Modal("Dice Selection") {
+        Modal("Die Selection") {
+            val search = ObservableValue("")
+            text(label = "Search").bindTo(search)
             for (die in SpecialDie.SPECIAL_DICE) {
-                div(className = "alert", content = die.name) {
+                p(className = "alert") {
+                    span(die.name)
+                    if (die.devilsHead) {
+                        br()
+                        span("Note: Devil's Head is not yet implemented", className = "fst-italic")
+                    }
+                    cursor = Cursor.POINTER
                     selection.subscribe {
                         if (selection.value == die) {
                             removeCssClass("alert-secondary")
@@ -214,8 +234,12 @@ class App : Application() {
                             addCssClass("alert-secondary")
                         }
                     }
+                    search.subscribe {
+                        visible = sanitizeForSearch(die.name).contains(sanitizeForSearch(it))
+                    }
                     onClick {
                         selection.value = die
+                        this@Modal.hide()
                     }
                 }
             }

@@ -11,6 +11,7 @@ import io.kvision.html.Button
 import io.kvision.html.ButtonStyle
 import io.kvision.html.Div
 import io.kvision.html.InputType
+import io.kvision.html.TAG
 import io.kvision.html.br
 import io.kvision.html.button
 import io.kvision.html.div
@@ -18,6 +19,7 @@ import io.kvision.html.li
 import io.kvision.html.link
 import io.kvision.html.p
 import io.kvision.html.span
+import io.kvision.html.tag
 import io.kvision.html.ul
 import io.kvision.modal.Modal
 import io.kvision.modal.ModalSize
@@ -68,6 +70,7 @@ class App : Application() {
                     "This site simulates the dice minigame in <a href='https://store.steampowered.com/app/1771300/Kingdom_Come_Deliverance_II/'>Kingdom Come: Deliverance II</a>. For a given set of thrown dice, it determines possible moves and recommends those with the best <a href='https://en.wikipedia.org/wiki/Expected_value'>expected value</a> (EV).",
                     rich = true
                 )
+                tag(TAG.HR)
                 p("There are three score fields:")
                 ul {
                     li("The 'Goal' field contains the maximum number of points you wish to reach, e.g. 3000 for a Masters-level game.")
@@ -77,6 +80,9 @@ class App : Application() {
                 p("Below the score fields is the dice selection. Each column represents one die. After a throw, select the number of eyes for all the dice here. There's six columns, but if a throw contained fewer than six dice, just leave some columns as '/'. Those dice will be ignored.")
                 p("Once you've entered all the dice values, press 'Think'. This button will simulate the moves. It may take a few seconds to compute. Once the simulation completes, a suggested move is displayed. The dice to be held get a green background. Next to the 'Think' button, the expected value is displayed, along with whether you should pass or continue with more throws.")
                 p("The 'Accept' button applies the suggested throw to the scores. The value of the held dice will be added to the 'Round' score. If the suggestion was to pass, the 'Round' score is added to the 'Scored' score and the inputs are reset for a new round.")
+                tag(TAG.HR)
+                p("If you want to play with special dice, select them below the die number selection.")
+                tag(TAG.HR)
                 p {
                     link("Contribute on GitHub", "https://github.com/yawkat/kcd2dicesim")
                 }

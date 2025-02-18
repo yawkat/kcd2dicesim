@@ -161,6 +161,8 @@ class EvCalculator(private val limit: Score, private val allDice: DieBag) {
         fun toDouble(): Double = value.toDouble() / FACTOR
         fun roundToInt(): Int = toDouble().roundToInt()
 
+        override fun toString() = "Ev[${toDouble()}]"
+
         @JvmInline
         internal value class Arr private constructor(private val array: IntArray) {
             constructor(size: Int) : this(IntArray(size))

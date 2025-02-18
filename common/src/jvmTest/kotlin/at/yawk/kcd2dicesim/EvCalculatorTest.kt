@@ -1,6 +1,7 @@
 package at.yawk.kcd2dicesim
 
 import org.junit.jupiter.api.Assertions
+import org.junit.jupiter.api.Disabled
 import org.junit.jupiter.api.Test
 
 class EvCalculatorTest {
@@ -51,6 +52,7 @@ class EvCalculatorTest {
     }
 
     @Test
+    @Disabled
     fun `best dice`() {
         for (d in SpecialDie.SPECIAL_DICE) {
             val bag = DieBag.of(

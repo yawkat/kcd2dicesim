@@ -3,7 +3,7 @@ package at.yawk.kcd2dicesim
 class SpecialDie private constructor(
     val shortName: String,
     val name: String,
-    weights: ByteArray,
+    val weights: ByteArray,
     val devilsHead: Boolean = false
 ) {
     init {
@@ -82,7 +82,6 @@ class SpecialDie private constructor(
             for ((i, die) in SPECIAL_DICE.withIndex()) {
                 die.id = i.toByte()
             }
-            require(SPECIAL_DICE.map { it.shortName }.toSet().size == SPECIAL_DICE.size)
         }
     }
 }

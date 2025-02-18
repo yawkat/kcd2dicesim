@@ -78,8 +78,10 @@ class EvCalculator(private val limit: Score, private val allDice: DieBag) {
         var totalEv = Ev.WeightedSum.zero()
         DiceThrow.forEachThrow(n) { thr ->
             var weight = 1
-            for (i in 0 until n) {
-                weight *= remainingDice[i].getWeight(thr[i])
+            if (!remainingDice.onlyNormalDice) {
+                for (i in 0 until n) {
+                    weight *= remainingDice[i].getWeight(thr[i])
+                }
             }
             if (weight != 0) {
                 totalEv = totalEv.plus(bestEv(oldScore, thr, remainingDice, null), weight)
@@ -146,10 +148,6 @@ class EvCalculator(private val limit: Score, private val allDice: DieBag) {
     @JvmInline
     value class Ev private constructor(private val value: Int) {
         companion object {
-            /**
-             * Chosen so that `4000 * 6**6 * (1 << SCORE_SHIFT) / SCORE_DIVIDER` fits into 31 bits, so that
-             * [WeightedSum] cannot overflow.
-             */
             private const val SCORE_SHIFT = 9
             private const val FACTOR = (1 shl SCORE_SHIFT).toDouble() / Score.SCORE_DIVIDER
 

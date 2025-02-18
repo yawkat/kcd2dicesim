@@ -2,20 +2,19 @@ package at.yawk.kcd2dicesim
 
 import kotlin.jvm.JvmInline
 
-val COMBINATION_COUNTS = intArrayOf(
-    1,
-    6,
-    6 * 6,
-    6 * 6 * 6,
-    6 * 6 * 6 * 6,
-    6 * 6 * 6 * 6 * 6,
-    6 * 6 * 6 * 6 * 6 * 6,
-)
-
+/**
+ * Set of thrown dice values (up to six dice, 1-6 eyes each). Internal encoding is three bits per die.
+ */
 @JvmInline
 value class DiceThrow private constructor(val value: Int) {
+    /**
+     * Create a new throw. Inputs must be in `0..5`
+     */
     constructor(vararg values: Byte) : this(combine(values))
 
+    /**
+     * Get the number of dice in this throw.
+     */
     val length: Int
         get() {
             val highBit = value.takeHighestOneBit()
@@ -37,8 +36,14 @@ value class DiceThrow private constructor(val value: Int) {
             return true
         }
 
+    /**
+     * Get the die value at the given index (`0..5`).
+     */
     operator fun get(i: Int): Byte = (((value ushr (i * 3)) and 7) - 1).toByte()
 
+    /**
+     * Sort the dice values.
+     */
     fun sorted(): DiceThrow = DiceThrow(SORTED_CACHE[value])
 
     fun toArray() = ByteArray(length) { get(it) }
@@ -90,13 +95,7 @@ value class DiceThrow private constructor(val value: Int) {
                 SINGLE_SCORE[DiceThrow(i, i, i, i, i, i).value] = (baseScore * 8).toCompactByte()
             }
             for (i in 0 until CACHE_SIZE) {
-                val thr = DiceThrow(i)
-                if (thr.valid) {
-                    val sorted = thr.sort0()
-                    SORTED_CACHE[i] = sorted.value
-                    SINGLE_SCORE[thr.value] = SINGLE_SCORE[sorted.value]
-                    MULTI_SCORE[thr.value] = thr.multiScore0().toCompactByte()
-                }
+                DiceThrow(i).initCaches()
             }
         }
 
@@ -131,6 +130,15 @@ value class DiceThrow private constructor(val value: Int) {
         fun fromCompactInt(int: Int) = DiceThrow(int)
     }
 
+    private fun initCaches() {
+        if (valid) {
+            val sorted = sort0()
+            SORTED_CACHE[value] = sorted.value
+            SINGLE_SCORE[value] = SINGLE_SCORE[sorted.value]
+            MULTI_SCORE[value] = multiScore0().toCompactByte()
+        }
+    }
+
     private fun sort0(): DiceThrow {
         return DiceThrow(*toArray().sortedArray())
     }
@@ -147,8 +155,15 @@ value class DiceThrow private constructor(val value: Int) {
         return DiceThrow(masked)
     }
 
+    /**
+     * Return a new throw that only keeps those dice values where the corresponding bit in [mask] is set.
+     */
     fun mask(mask: Byte): DiceThrow = DiceThrow(MASK[value]!![mask.toInt()])
 
+    /**
+     * Get the score for this throw as a *single* combination. For example, if this throw is `12345`, it will return a
+     * score of 500, but if this is 112345 it will return 0.
+     */
     fun selectionScoreSingle(): Score = Score.fromCompactByte(SINGLE_SCORE[value])
 
     private fun multiScore0(): Score {
@@ -162,16 +177,23 @@ value class DiceThrow private constructor(val value: Int) {
             val a = mask(mask.toByte())
             val b = mask((mask.inv() and (peak - 1)).toByte())
             val aScore = a.selectionScoreSingle()
-            val bScore = b.multiScore()
-            if (aScore != Score(0) && bScore != Score(0)) {
-                val combined = aScore + bScore
-                if (combined > best) {
-                    best = combined
+            if (aScore != Score(0)) {
+                val bScore = b.multiScore()
+                if (bScore != Score(0)) {
+                    val combined = aScore + bScore
+                    if (combined > best) {
+                        best = combined
+                    }
                 }
             }
         }
         return best
     }
 
+    /**
+     * Get the score for this throw, including multiple combinations. For example, if this throw is 112345, this method
+     * returns 600 (500 for 12345 and 100 for the remaining 1). If this throw contains dice that cannot be combined,
+     * this method returns 0.
+     */
     fun multiScore(): Score = Score.fromCompactByte(MULTI_SCORE[value])
 }

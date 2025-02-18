@@ -3,3 +3,4 @@ import {wasmCalculateEv, wasmGetMoveKeepMask, wasmGetMoveShouldContinue} from ".
 window.wasmCalculateEv = wasmCalculateEv;
 window.wasmGetMoveKeepMask = wasmGetMoveKeepMask;
 window.wasmGetMoveShouldContinue = wasmGetMoveShouldContinue;
+window.onWasmAvailable()

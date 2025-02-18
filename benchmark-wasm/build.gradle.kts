@@ -16,4 +16,3 @@ kotlin {
         implementation(project(":common"))
     }
 }
-println(tasks.named("compileProductionExecutableKotlinWasmJsOptimize"))

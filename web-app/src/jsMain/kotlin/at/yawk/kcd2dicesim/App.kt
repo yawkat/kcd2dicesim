@@ -31,6 +31,8 @@ private const val NUM_DICE = 6
 private fun ObservableValue<Int?>.toStringValue() =
     map({ it?.toString() ?: "" }, { it.toIntOrNull() })
 
+private val wasmAvailable = ObservableValue(false)
+
 class App : Application() {
 
     private val goal = ObservableValue<Int?>(3000)
@@ -186,6 +188,16 @@ class App : Application() {
             if (window.location.host != "kcd2dicesim.yawk.at") {
                 div(className = "alert alert-info mt-2", content = "The latest version of this tool is always available at <a href='https://kcd2dicesim.yawk.at/'>kcd2dicesim.yawk.at</a>.", rich = true)
             }
+            div(className = "alert alert-warning mt-2", content = "Failed to load WebAssembly backend. The application will still work but will be very slow.") {
+                wasmAvailable.subscribe {
+                    if (it) {
+                        parent?.remove(this)
+                    }
+                }
+                if (window.location.protocol.startsWith("file", ignoreCase = true)) {
+                    content += " This is likely because you're using a local copy (WebAssembly is not allowed locally) – you can try the website above instead."
+                }
+            }
         }
     }
 
@@ -231,7 +243,7 @@ class App : Application() {
 }
 
 private fun think(limit: Score, round: Score, thr: DiceThrow, fullBag: DieBag, selectedBag: DieBag): Pair<Double, EvCalculator.Move?> {
-    if (true) { // TODO
+    if (wasmAvailable.value) {
         val bestEv = wasmCalculateEv(
             limit = limit.toCompactByte(),
             round = round.toCompactByte(),
@@ -243,16 +255,17 @@ private fun think(limit: Score, round: Score, thr: DiceThrow, fullBag: DieBag, s
         )
         val shouldContinue = wasmGetMoveShouldContinue() != 0
         return bestEv to EvCalculator.Move(wasmGetMoveKeepMask(), shouldContinue)
+    } else {
+        var move: EvCalculator.Move? = null
+        val bestEv = EvCalculator(limit, fullBag)
+            .bestEv(round, thr, selectedBag) {
+                move = it
+            }
+        return bestEv.toDouble() to move
     }
-
-    var move: EvCalculator.Move? = null
-    val bestEv = EvCalculator(limit, fullBag)
-        .bestEv(round, thr, selectedBag) {
-            move = it
-        }
-    return bestEv.toDouble() to move
 }
 
 fun main() {
+    js("window").onWasmAvailable = { -> wasmAvailable.value = true }
     startApplication(::App, module.hot, BootstrapModule, BootstrapCssModule, CoreModule)
 }

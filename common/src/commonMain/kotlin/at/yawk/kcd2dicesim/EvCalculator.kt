@@ -41,6 +41,7 @@ class EvCalculator(private val limit: Score, private val allDice: DieBag) {
         return calculateEvInl(oldScore, remainingDice)
     }
 
+    @Suppress("NOTHING_TO_INLINE") // reduce recursion stack depth
     private inline fun calculateEvInl(oldScore: Score, remainingDice: DieBag): Ev {
         val key = (oldScore.toCompactByte().toLong() and 0xffL) or (remainingDice.toCompactLong() shl 8)
         var i = probe(key)

@@ -1,0 +1,26 @@
+name: Publish to GitHub Pages
+on: ['push']
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      deployments: write
+    environment: "cloudflare pages"
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        name: Set up JDK 21
+        with:
+          java-version: 21
+          distribution: temurin
+      - uses: gradle/actions/setup-gradle@v4
+        name: Set up Gradle
+      - run: ./gradlew check :web-app:jsBrowserDistribution
+        name: Build project
+      - name: Publish
+        uses: cloudflare/wrangler-action@v3
+        with:
+          apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          command: pages deploy .dist --project-name=kcd2dicesim-yawk-at

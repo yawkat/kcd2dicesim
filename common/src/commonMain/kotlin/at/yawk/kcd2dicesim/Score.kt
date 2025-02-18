@@ -2,8 +2,9 @@ package at.yawk.kcd2dicesim
 
 import kotlin.jvm.JvmInline
 
-private const val SCORE_DIVIDER = 50
-
+/**
+ * Optimized score implementation. Since scores are always a multiple of 50, this class removes that factor.
+ */
 @JvmInline
 value class Score private constructor(private val value: Byte) : Comparable<Score> {
     constructor(value: Int) : this((value / SCORE_DIVIDER).toByte())
@@ -23,6 +24,8 @@ value class Score private constructor(private val value: Byte) : Comparable<Scor
     override fun toString() = "Score(${toInt()})"
 
     companion object {
+        const val SCORE_DIVIDER = 50
+
         fun fromCompactByte(value: Byte) = Score(value)
     }
 }

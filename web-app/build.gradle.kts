@@ -8,6 +8,8 @@ repositories {
     mavenCentral()
 }
 
+val commonWasm = project.parent!!.project("common-wasm")
+
 kotlin {
     js(IR) {
         browser {
@@ -26,10 +28,14 @@ kotlin {
         implementation(libs.kvision.bootstrap)
         implementation(libs.kvision.state)
         implementation(project(":common"))
-        implementation(project(":common-wasm"))
     }
     sourceSets["jsTest"].dependencies {
         implementation(libs.kotlin.test.js)
         implementation(libs.kvision.testutils)
     }
+    sourceSets["jsMain"].resources.srcDir(commonWasm.layout.buildDirectory.dir("compileSync/wasmJs/main/productionExecutable/optimized").get().asFile)
+}
+
+tasks.named("jsProcessResources").configure {
+    dependsOn(commonWasm.tasks.named("compileProductionExecutableKotlinWasmJsOptimize"))
 }

@@ -7,6 +7,7 @@ class SpecialDie private constructor(
 ) {
     init {
         require(weights.size == 6)
+        require(weights.all { it < (1 shl BITS_PER_WEIGHT) })
     }
 
     var id: Byte = 0
@@ -14,11 +15,27 @@ class SpecialDie private constructor(
 
     val totalWeight = weights.sum()
 
+    private val weightsCompact: Int
+
+    init {
+        var weightsCompact = 0
+        for (w in weights.reversedArray()) {
+            weightsCompact = (weightsCompact shl BITS_PER_WEIGHT) or w.toInt()
+        }
+        this.weightsCompact = weightsCompact
+    }
+
+    fun getWeight(eyes: Byte): Byte {
+        return ((weightsCompact ushr (BITS_PER_WEIGHT * eyes)) and ((1 shl BITS_PER_WEIGHT) - 1)).toByte()
+    }
+
     override fun toString() = "{$name}"
 
     private constructor(name: String, vararg weights: Byte) : this(name, weights)
 
     companion object {
+        private const val BITS_PER_WEIGHT = 4
+
         val NORMAL_DIE = SpecialDie("Normal die", 1, 1, 1, 1, 1, 1)
         val SPECIAL_DICE = listOf(
             NORMAL_DIE,

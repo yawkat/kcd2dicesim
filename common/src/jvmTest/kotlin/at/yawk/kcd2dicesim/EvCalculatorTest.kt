@@ -2,7 +2,6 @@ package at.yawk.kcd2dicesim
 
 import org.junit.jupiter.api.Assertions
 import org.junit.jupiter.api.Test
-import kotlin.math.roundToInt
 
 class EvCalculatorTest {
     @Test
@@ -24,7 +23,8 @@ class EvCalculatorTest {
             DiceThrow(0, 1, 1, 2, 2, 3),
             bag
         )
-        Assertions.assertEquals(427.34382841709623, ev)
+        // result with full accuracy double: 427.34382841709623
+        Assertions.assertEquals(427.24609375, ev.toDouble())
     }
 
     @Test
@@ -46,7 +46,8 @@ class EvCalculatorTest {
             DiceThrow(0, 1, 1, 2, 2, 3),
             bag
         )
-        Assertions.assertEquals(502.94831893880513, ev)
+        // result with full accuracy double: 502.94831893880513
+        Assertions.assertEquals(502.83203125, ev.toDouble())
     }
 
     @Test
@@ -70,5 +71,26 @@ class EvCalculatorTest {
             )
             println("$d : ${ev.roundToInt()}")
         }
+    }
+
+    @Test
+    fun `perf testing`() {
+        DiceThrow // initialize
+
+        val start = System.nanoTime()
+        val bag = DieBag.of(
+            listOf(
+                SpecialDie.NORMAL_DIE,
+                SpecialDie.NORMAL_DIE,
+                SpecialDie.NORMAL_DIE,
+                SpecialDie.NORMAL_DIE,
+                SpecialDie.NORMAL_DIE,
+                SpecialDie.NORMAL_DIE
+            )
+        )
+        val calculator = EvCalculator(Score(3000), bag)
+        calculator.calculateEv(Score(0), bag)
+        val end = System.nanoTime()
+        println("Took ${(end - start) / 1000000.0} ms")
     }
 }

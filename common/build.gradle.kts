@@ -14,6 +14,11 @@ kotlin {
         binaries.library()
     }
     wasmJs {
+        nodejs()
+        binaries.library()
+    }
+    wasmWasi {
+        nodejs()
         binaries.library()
     }
     sourceSets["jvmTest"].dependencies {

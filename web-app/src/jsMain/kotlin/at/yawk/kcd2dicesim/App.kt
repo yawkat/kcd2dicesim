@@ -32,11 +32,11 @@ private fun ObservableValue<Int?>.toStringValue() =
     map({ it?.toString() ?: "" }, { it.toIntOrNull() })
 
 class App : Application() {
+
     private val goal = ObservableValue<Int?>(3000)
     private val scored = ObservableValue<Int?>(0)
     private val round = ObservableValue<Int?>(0)
-    private val diceValues = Array<ObservableValue<Byte?>>(NUM_DICE) { ObservableValue(null) }
-    private val dice = Array(NUM_DICE) { ObservableValue(SpecialDie.NORMAL_DIE) }
+    private val diceColumns = Array(NUM_DICE) { DieColumn() }
 
     override fun start(state: Map<String, Any>) {
         state["goal"]?.let { if (it != -1) goal.setState(it as Int) }
@@ -94,19 +94,18 @@ class App : Application() {
                     }
                 }
             }
-            lateinit var diceColumns: List<Div>
             div(className = "row") {
-                diceColumns = diceValues.mapIndexed { diceIndex, obs ->
-                    div(className = "col d-grid gap-2 pt-2 pb-2") {
+                for (col in diceColumns) {
+                    col.element = div(className = "col d-grid gap-1 g-1 pt-1 pb-1") {
                         val buttons = (0..6).map { j ->
                             button(if (j == 0) "/" else "$j") {
                                 addCssClass("btn")
                                 onClick {
-                                    obs.value = if (j == 0) null else (j - 1).toByte()
+                                    col.value.value = if (j == 0) null else (j - 1).toByte()
                                 }
                             }
                         }
-                        obs.subscribe { v ->
+                        col.value.subscribe { v ->
                             val selected = (v ?: -1) + 1
                             for ((i, button) in buttons.withIndex()) {
                                 if (i == selected) {
@@ -118,13 +117,12 @@ class App : Application() {
                                 }
                             }
                         }
-                        val diceChoice = dice[diceIndex]
                         button("", className = "btn btn-link") {
-                            diceChoice.subscribe {
+                            col.die.subscribe {
                                 text = it.name.substring(0, 1) // TODO
                             }
                             onClick {
-                                diceSelector(diceChoice)
+                                diceSelector(col.die)
                             }
                         }
                     }
@@ -133,33 +131,32 @@ class App : Application() {
             div(className = "row gap-2 mt-2") {
                 val think = button("Think", className = "btn col")
                 val moveObs = ObservableValue<EvCalculator.Move?>(null)
+                var moveScore = Score(0)
                 val evDisplay = span(className = "col")
                 think.onClick {
-                    val typeAndValue = (0 until NUM_DICE)
-                        .map { dice[it].value to diceValues[it].value }
-                        .filter { it.second != null }
-                        .sortedBy { it.first.id }
-                    val thr = DiceThrow(*typeAndValue.mapNotNull { it.second }.toByteArray())
-                    val bagItems = typeAndValue.map { it.first }
+                    val workColumns = diceColumns
+                        .filter { it.value.value != null }
+                        .sortedBy { it.die.value.id }
+                    val thr = DiceThrow(*workColumns.mapNotNull { it.value.value }.toByteArray())
+                    val bagItems = workColumns.map { it.die.value }
                     val bag = DieBag.of(bagItems)
                     require(bag.toList() == bagItems) { "$bag $bagItems" } // should be ensured by the sort above, but double-check
                     val (bestEv, move) = think(
                         limit = Score((goal.value ?: 3000) - (scored.value ?: 0)),
                         round = Score(round.value ?: 0),
                         thr = thr,
-                        fullBag = DieBag.of(dice.map { it.value }),
+                        fullBag = DieBag.of(diceColumns.map { it.die.value }),
                         selectedBag = bag
                     )
                     moveObs.value = move
                     evDisplay.content = "EV: ${bestEv.roundToInt()} on ${if (move?.shouldContinue == true) "continue" else "PASS"}"
                     if (move != null) {
-                        val remainingMoves = move.keep.toArray().toMutableList()
-                        for ((i, die) in diceValues.withIndex()) {
-                            val col = diceColumns[i]
-                            if (remainingMoves.remove(die.value)) {
-                                col.addCssClass("bg-success-subtle")
+                        moveScore = thr.mask(move.keepMask).multiScore()
+                        for ((i, col) in workColumns.withIndex()) {
+                            if (((move.keepMask.toInt() ushr i) and 1) != 0) {
+                                col.element.addCssClass("bg-success-subtle")
                             } else {
-                                col.removeCssClass("bg-success-subtle")
+                                col.element.removeCssClass("bg-success-subtle")
                             }
                         }
                     }
@@ -171,16 +168,14 @@ class App : Application() {
                     onClick {
                         val move = moveObs.value
                         if (move != null) {
-                            round.value = (round.value ?: 0) + move.keep.multiScore().toInt()
+                            round.value = (round.value ?: 0) + moveScore.toInt()
                             if (!move.shouldContinue) {
                                 scored.value = (scored.value ?: 0) + (round.value ?: 0)
                                 round.value = 0
                             }
-                            for (obs in diceValues) {
-                                obs.value = null
-                            }
-                            for (column in diceColumns) {
-                                column.removeCssClass("bg-success-subtle")
+                            for (col in diceColumns) {
+                                col.value.value = null
+                                col.element.removeCssClass("bg-success-subtle")
                             }
                             evDisplay.content = ""
                             moveObs.value = null
@@ -221,12 +216,17 @@ class App : Application() {
     }
 
     override fun dispose(): Map<String, Any> {
-        console.log("Dispos2")
         return mapOf(
             "goal" to (goal.getState()?.toInt() ?: -1),
             "scored" to (scored.getState()?.toInt() ?: -1),
             "round" to (round.getState()?.toInt() ?: -1),
         )
+    }
+
+    class DieColumn {
+        val value = ObservableValue<Byte?>(null)
+        val die = ObservableValue(SpecialDie.NORMAL_DIE)
+        lateinit var element: Div
     }
 }
 
@@ -241,7 +241,8 @@ private fun think(limit: Score, round: Score, thr: DiceThrow, fullBag: DieBag, s
             selectedBagLo = selectedBag.toCompactLong().toInt(),
             selectedBagHi = (selectedBag.toCompactLong() ushr 32).toInt()
         )
-        return bestEv to EvCalculator.Move(DiceThrow.fromCompactInt(wasmGetMoveKeep()), wasmGetMoveShouldContinue())
+        val shouldContinue = wasmGetMoveShouldContinue() != 0
+        return bestEv to EvCalculator.Move(wasmGetMoveKeepMask(), shouldContinue)
     }
 
     var move: EvCalculator.Move? = null
@@ -249,7 +250,7 @@ private fun think(limit: Score, round: Score, thr: DiceThrow, fullBag: DieBag, s
         .bestEv(round, thr, selectedBag) {
             move = it
         }
-    return bestEv to move
+    return bestEv.toDouble() to move
 }
 
 fun main() {

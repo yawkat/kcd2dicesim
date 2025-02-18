@@ -16,7 +16,7 @@ jobs:
           distribution: temurin
       - uses: gradle/actions/setup-gradle@v4
         name: Set up Gradle
-      - run: ./gradlew zip
+      - run: ./gradlew :web-app:zip
         name: Build project
       - uses: joutvhu/get-release@v1
         id: get_current_release
@@ -27,6 +27,6 @@ jobs:
           GITHUB_TOKEN: ${{ github.token }}
         with:
           upload_url: ${{ steps.get_current_release.outputs.upload_url }}
-          asset_path: build/libs/kcd2dicesim-1.0-SNAPSHOT.zip
+          asset_path: web-app/build/libs/web-app.zip
           asset_name: kcd2dicesim.zip
           asset_content_type: application/zip

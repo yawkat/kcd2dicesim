@@ -21,6 +21,9 @@ kotlin {
         nodejs()
         binaries.library()
     }
+    sourceSets["commonMain"].dependencies {
+        api(libs.kotlinx.serialization.json)
+    }
     sourceSets["jvmTest"].dependencies {
         implementation(libs.junit.jupiter.engine)
     }

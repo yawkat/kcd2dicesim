@@ -11,6 +11,7 @@ import io.kvision.html.Button
 import io.kvision.html.ButtonStyle
 import io.kvision.html.Div
 import io.kvision.html.InputType
+import io.kvision.html.Span
 import io.kvision.html.TAG
 import io.kvision.html.br
 import io.kvision.html.button
@@ -37,9 +38,8 @@ private const val NUM_DICE = 6
 private fun ObservableValue<Int?>.toStringValue() =
     map({ it?.toString() ?: "" }, { it.toIntOrNull() })
 
-private val wasmAvailable = ObservableValue(false)
-
 class App : Application() {
+    private var provider: AsyncEvProvider = AsyncEvProvider.Local()
 
     private val goal = ObservableValue<Int?>(3000)
     private val scored = ObservableValue<Int?>(0)
@@ -47,6 +47,10 @@ class App : Application() {
     private val diceColumns = Array(NUM_DICE) { DieColumn() }
 
     override fun start() {
+        if (js("window.Worker !== undefined") as Boolean) {
+            provider = WorkerEvProvider()
+        }
+
         for ((i, col) in diceColumns.withIndex()) {
             val storageKey = "die-type-$i"
             localStorage.getItem(storageKey)?.let { name ->
@@ -161,39 +165,56 @@ class App : Application() {
                 }
             }
             div(className = "row gap-2 mt-2") {
-                val think = button("Think", className = "btn col")
                 val moveObs = ObservableValue<EvCalculator.Move?>(null)
                 var moveScore = Score(0)
-                val evDisplay = span(className = "col")
-                think.onClick {
-                    val workColumns = diceColumns
-                        .filter { it.value.value != null }
-                        .sortedBy { it.die.value.id }
-                    val thr = DiceThrow(*workColumns.mapNotNull { it.value.value }.toByteArray())
-                    val bagItems = workColumns.map { it.die.value }
-                    val bag = DieBag.of(bagItems)
-                    require(bag.toList() == bagItems) { "$bag $bagItems" } // should be ensured by the sort above, but double-check
-                    val (bestEv, move) = think(
-                        limit = Score((goal.value ?: 3000) - (scored.value ?: 0)),
-                        round = Score(round.value ?: 0),
-                        thr = thr,
-                        fullBag = DieBag.of(diceColumns.map { it.die.value }),
-                        selectedBag = bag
-                    )
-                    moveObs.value = move
-                    evDisplay.content =
-                        "EV: ${bestEv.roundToInt()} on ${if (move?.shouldContinue == true) "continue" else "PASS"}"
-                    if (move != null) {
-                        moveScore = thr.mask(move.keepMask).multiScore()
-                        for ((i, col) in workColumns.withIndex()) {
-                            if (((move.keepMask.toInt() ushr i) and 1) != 0) {
-                                col.element.addCssClass("bg-success-subtle")
-                            } else {
-                                col.element.removeCssClass("bg-success-subtle")
+                lateinit var evDisplay: Span
+                button("", className = "btn col") {
+                    val thinking = ObservableValue<Boolean>(false)
+                    thinking.subscribe {
+                        disabled = it
+                        if (it) {
+                            this@button.span(className = "spinner-border spinner-border-sm")
+                            text = ""
+                        } else {
+                            removeAll()
+                            text = "Think"
+                        }
+                    }
+                    onClick {
+                        val workColumns = diceColumns
+                            .filter { it.value.value != null }
+                            .sortedBy { it.die.value.id }
+                        val thr = DiceThrow(*workColumns.mapNotNull { it.value.value }.toByteArray())
+                        val bagItems = workColumns.map { it.die.value }
+                        val bag = DieBag.of(bagItems)
+                        require(bag.toList() == bagItems) { "$bag $bagItems" } // should be ensured by the sort above, but double-check
+
+                        thinking.value = true
+                        provider.bestEvAndMove(EvProvider.Request(
+                            limit = Score((goal.value ?: 3000) - (scored.value ?: 0)),
+                            allDice = DieBag.of(diceColumns.map { it.die.value }),
+                            oldScore = Score(round.value ?: 0),
+                            thr = thr,
+                            dice = bag
+                        )).then { (bestEv, move) ->
+                            thinking.value = false
+                            moveObs.value = move
+                            evDisplay.content =
+                                "EV: ${bestEv.roundToInt()} on ${if (move?.shouldContinue == true) "continue" else "PASS"}"
+                            if (move != null) {
+                                moveScore = thr.mask(move.keepMask).multiScore()
+                                for ((i, col) in workColumns.withIndex()) {
+                                    if (((move.keepMask.toInt() ushr i) and 1) != 0) {
+                                        col.element.addCssClass("bg-success-subtle")
+                                    } else {
+                                        col.element.removeCssClass("bg-success-subtle")
+                                    }
+                                }
                             }
                         }
                     }
                 }
+                evDisplay = span(className = "col")
                 button("Accept", className = "btn col") {
                     moveObs.subscribe {
                         disabled = it == null
@@ -227,10 +248,8 @@ class App : Application() {
                 className = "alert alert-warning mt-2",
                 content = "Failed to load WebAssembly backend. The application will still work but will be very slow."
             ) {
-                wasmAvailable.subscribe {
-                    if (it) {
-                        parent?.remove(this)
-                    }
+                provider.loadWasm().then {
+                    parent?.remove(this)
                 }
                 if (window.location.protocol.startsWith("file", ignoreCase = true)) {
                     content += " This is likely because you're using a local copy (WebAssembly is not allowed locally) – you can try the website above instead."
@@ -288,36 +307,6 @@ class App : Application() {
     }
 }
 
-private fun think(
-    limit: Score,
-    round: Score,
-    thr: DiceThrow,
-    fullBag: DieBag,
-    selectedBag: DieBag
-): Pair<Double, EvCalculator.Move?> {
-    if (wasmAvailable.value) {
-        val bestEv = wasmCalculateEv(
-            limit = limit.toCompactByte(),
-            round = round.toCompactByte(),
-            thr = thr.toCompactInt(),
-            fullBagLo = fullBag.toCompactLong().toInt(),
-            fullBagHi = (fullBag.toCompactLong() ushr 32).toInt(),
-            selectedBagLo = selectedBag.toCompactLong().toInt(),
-            selectedBagHi = (selectedBag.toCompactLong() ushr 32).toInt()
-        )
-        val shouldContinue = wasmGetMoveShouldContinue() != 0
-        return bestEv to EvCalculator.Move(wasmGetMoveKeepMask(), shouldContinue)
-    } else {
-        var move: EvCalculator.Move? = null
-        val bestEv = EvCalculator(limit, fullBag)
-            .bestEv(round, thr, selectedBag) {
-                move = it
-            }
-        return bestEv.toDouble() to move
-    }
-}
-
 fun main() {
-    js("window").onWasmAvailable = { -> wasmAvailable.value = true }
     startApplication(::App, module.hot, BootstrapModule, BootstrapCssModule, CoreModule)
 }

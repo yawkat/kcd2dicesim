@@ -1,11 +1,13 @@
 package at.yawk.kcd2dicesim
 
+import kotlinx.serialization.Serializable
 import kotlin.jvm.JvmInline
 
 /**
  * Set of thrown dice values (up to six dice, 1-6 eyes each). Internal encoding is three bits per die.
  */
 @JvmInline
+@Serializable
 value class DiceThrow private constructor(val value: Int) {
     /**
      * Create a new throw. Inputs must be in `0..5`
@@ -49,8 +51,6 @@ value class DiceThrow private constructor(val value: Int) {
     fun toArray() = ByteArray(length) { get(it) }
 
     override fun toString() = "DiceThrow" + (toArray().joinToString(",", "[", "]"))
-
-    fun toCompactInt() = value
 
     companion object {
         private const val CACHE_SIZE = 1 shl (3 * 6)
@@ -126,8 +126,6 @@ value class DiceThrow private constructor(val value: Int) {
                 }
             }
         }
-
-        fun fromCompactInt(int: Int) = DiceThrow(int)
     }
 
     private fun initCaches() {

@@ -2,25 +2,51 @@
 
 package at.yawk.kcd2dicesim
 
+import kotlinx.serialization.json.Json
+import kotlin.random.Random
 import kotlin.wasm.WasmExport
 
-private var move: EvCalculator.Move? = null
-
 @WasmExport
-fun wasmCalculateEv(limit: Byte, round: Byte, thr: Int, fullBagLo: Int, fullBagHi: Int, selectedBagLo: Int, selectedBagHi: Int): Double {
-    println("wasmCalculateEv($limit, $round, $thr, $fullBagLo, $fullBagHi, $selectedBagLo, $selectedBagHi)")
-    val bestEv = EvCalculator(Score.fromCompactByte(limit), DieBag.fromCompactLong(recombineLong(fullBagLo, fullBagHi)))
-        .bestEv(Score.fromCompactByte(round), DiceThrow.fromCompactInt(thr), DieBag.fromCompactLong(recombineLong(selectedBagLo, selectedBagHi))) {
-            move = it
-        }
-    return bestEv.toDouble()
+fun wasmBestEvAndMove(writer: Int): Int {
+    val request = writers.remove(writer)!!.decodeToString()
+    println("wasmCalculateEv($request)")
+    val response = Json.encodeToString(EvProvider.Local.bestEvAndMove(Json.decodeFromString(request)))
+    println("wasmCalculateEv($request) -> $response")
+    return allocate(readers, response.encodeToByteArray())
 }
 
-private fun recombineLong(lo: Int, hi: Int) =
-    (lo.toLong() and 0xffffffffL) or (hi.toLong() shl 32)
+private val writers = mutableMapOf<Int, ByteArray>()
+private val readers = mutableMapOf<Int, ByteArray>()
+
+private fun allocate(map: MutableMap<Int, ByteArray>, initialValue: ByteArray): Int {
+    while (true) {
+        val i = Random.nextInt()
+        if (map.containsKey(i)) {
+            continue
+        }
+        map[i] = initialValue
+        return i
+    }
+}
 
 @WasmExport
-fun wasmGetMoveKeepMask(): Byte = move!!.keepMask
+fun wasmCreateWriter(): Int {
+    return allocate(writers, ByteArray(0))
+}
 
 @WasmExport
-fun wasmGetMoveShouldContinue(): Int = if (move!!.shouldContinue) 1 else 0
+fun wasmWrite(writer: Int, b: Byte) {
+    writers[writer] = writers[writer]!! + b
+}
+
+@WasmExport
+fun wasmRead(reader: Int): Int {
+    val arr = readers[reader]!!
+    if (arr.isEmpty()) {
+        readers.remove(reader)
+        return -1
+    } else {
+        readers[reader] = arr.copyOfRange(1, arr.size)
+        return arr[0].toInt() and 0xff
+    }
+}

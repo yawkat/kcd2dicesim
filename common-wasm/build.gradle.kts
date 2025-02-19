@@ -12,7 +12,14 @@ kotlin {
         nodejs()
         binaries.executable()
     }
+    js(IR) {
+        nodejs()
+        binaries.library()
+    }
     sourceSets["wasmJsMain"].dependencies {
+        implementation(project(":common"))
+    }
+    sourceSets["jsMain"].dependencies {
         implementation(project(":common"))
     }
 }

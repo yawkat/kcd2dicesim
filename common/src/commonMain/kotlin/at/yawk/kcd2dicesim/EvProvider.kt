@@ -17,13 +17,14 @@ interface EvProvider {
     @Serializable
     data class Response(
         val ev: Double,
-        val move: EvCalculator.Move?
+        val move: EvCalculator.Move?,
+        val moveScore: Score?
     )
 
     object Local : EvProvider {
         override fun bestEvAndMove(request: Request): Response {
             val (ev, move) = EvCalculator(request.limit, request.allDice).bestEvAndMove(request.oldScore, request.thr, request.dice)
-            return Response(ev.toDouble(), move)
+            return Response(ev.toDouble(), move, move?.let { m -> request.thr.mask(m.keepMask).multiScore() })
         }
     }
 }

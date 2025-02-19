@@ -46,18 +46,18 @@ value class DiceThrow private constructor(val value: Int) {
     /**
      * Sort the dice values.
      */
-    fun sorted(): DiceThrow = DiceThrow(SORTED_CACHE[value])
+    fun sorted(): DiceThrow = DiceThrow(Caches.SORTED_CACHE[value])
 
     fun toArray() = ByteArray(length) { get(it) }
 
     override fun toString() = "DiceThrow" + (toArray().joinToString(",", "[", "]"))
 
-    companion object {
-        private const val CACHE_SIZE = 1 shl (3 * 6)
+    private object Caches {
+        const val CACHE_SIZE = 1 shl (3 * 6)
 
-        private val SORTED_CACHE = IntArray(CACHE_SIZE)
+        val SORTED_CACHE = IntArray(CACHE_SIZE)
 
-        private val MASK = Array(CACHE_SIZE) {
+        val MASK = Array(CACHE_SIZE) {
             val thr = DiceThrow(it)
             if (thr.valid) {
                 IntArray(1 shl thr.length) { mask ->
@@ -68,9 +68,9 @@ value class DiceThrow private constructor(val value: Int) {
             }
         }
 
-        private val SINGLE_SCORE = ByteArray(CACHE_SIZE)
+        val SINGLE_SCORE = ByteArray(CACHE_SIZE)
 
-        private val MULTI_SCORE = ByteArray(CACHE_SIZE)
+        val MULTI_SCORE = ByteArray(CACHE_SIZE)
 
         init {
             SINGLE_SCORE[DiceThrow(0.toByte()).value] = Score(100).toCompactByte()
@@ -99,19 +99,13 @@ value class DiceThrow private constructor(val value: Int) {
             }
         }
 
-        private fun combine(arr: ByteArray): Int {
-            var i = 0
-            for (byte in arr.reversed()) {
-                i = (i shl 3) + (byte + 1)
-            }
-            return i
-        }
-
         init {
             println("DiceThrow initialized")
         }
+    }
 
-        private fun maskForNumberOfDice(numberOfDice: Int): Int {
+    companion object {
+        fun maskForNumberOfDice(numberOfDice: Int): Int {
             return (1 shl (numberOfDice * 3)) - 1
         }
 
@@ -126,14 +120,22 @@ value class DiceThrow private constructor(val value: Int) {
                 }
             }
         }
+
+        fun combine(arr: ByteArray): Int {
+            var i = 0
+            for (byte in arr.reversed()) {
+                i = (i shl 3) + (byte + 1)
+            }
+            return i
+        }
     }
 
     private fun initCaches() {
         if (valid) {
             val sorted = sort0()
-            SORTED_CACHE[value] = sorted.value
-            SINGLE_SCORE[value] = SINGLE_SCORE[sorted.value]
-            MULTI_SCORE[value] = multiScore0().toCompactByte()
+            Caches.SORTED_CACHE[value] = sorted.value
+            Caches.SINGLE_SCORE[value] = Caches.SINGLE_SCORE[sorted.value]
+            Caches.MULTI_SCORE[value] = multiScore0().toCompactByte()
         }
     }
 
@@ -156,13 +158,13 @@ value class DiceThrow private constructor(val value: Int) {
     /**
      * Return a new throw that only keeps those dice values where the corresponding bit in [mask] is set.
      */
-    fun mask(mask: Byte): DiceThrow = DiceThrow(MASK[value]!![mask.toInt()])
+    fun mask(mask: Byte): DiceThrow = DiceThrow(Caches.MASK[value]!![mask.toInt()])
 
     /**
      * Get the score for this throw as a *single* combination. For example, if this throw is `12345`, it will return a
      * score of 500, but if this is 112345 it will return 0.
      */
-    fun selectionScoreSingle(): Score = Score.fromCompactByte(SINGLE_SCORE[value])
+    fun selectionScoreSingle(): Score = Score.fromCompactByte(Caches.SINGLE_SCORE[value])
 
     private fun multiScore0(): Score {
         val direct = selectionScoreSingle()
@@ -193,5 +195,5 @@ value class DiceThrow private constructor(val value: Int) {
      * returns 600 (500 for 12345 and 100 for the remaining 1). If this throw contains dice that cannot be combined,
      * this method returns 0.
      */
-    fun multiScore(): Score = Score.fromCompactByte(MULTI_SCORE[value])
+    fun multiScore(): Score = Score.fromCompactByte(Caches.MULTI_SCORE[value])
 }

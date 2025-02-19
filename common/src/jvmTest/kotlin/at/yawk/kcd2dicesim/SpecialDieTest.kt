@@ -9,7 +9,7 @@ class SpecialDieTest {
         for (die in SpecialDie.SPECIAL_DICE) {
             Assertions.assertArrayEquals(
                 die.weights,
-                (0..5).map { die.getWeight(it.toByte()) }.toByteArray()
+                die.weights.indices.map { die.getWeight(it.toByte()) }.toByteArray()
             )
         }
     }

@@ -10,4 +10,7 @@ sealed class WorkerResponse {
 
     @Serializable
     object WasmLoaded : WorkerResponse()
+
+    @Serializable
+    object Started : WorkerResponse()
 }

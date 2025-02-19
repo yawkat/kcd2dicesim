@@ -27,4 +27,5 @@ fun main() {
         }
     }
     println("Worker running")
+    scope.postMessage(Json.encodeToString<WorkerResponse>(WorkerResponse.Started))
 }

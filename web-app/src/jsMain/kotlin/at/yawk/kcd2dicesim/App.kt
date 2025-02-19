@@ -196,13 +196,15 @@ class App : Application() {
                             oldScore = Score(round.value ?: 0),
                             thr = thr,
                             dice = bag
-                        )).then { (bestEv, move) ->
+                        )).then { (bestEv, move, ms) ->
                             thinking.value = false
                             moveObs.value = move
+                            if (ms != null) {
+                                moveScore = ms
+                            }
                             evDisplay.content =
                                 "EV: ${bestEv.roundToInt()} on ${if (move?.shouldContinue == true) "continue" else "PASS"}"
                             if (move != null) {
-                                moveScore = thr.mask(move.keepMask).multiScore()
                                 for ((i, col) in workColumns.withIndex()) {
                                     if (((move.keepMask.toInt() ushr i) and 1) != 0) {
                                         col.element.addCssClass("bg-success-subtle")

@@ -47,7 +47,7 @@ class App : Application() {
 
     override fun start() {
         if (js("window.Worker !== undefined") as Boolean) {
-            provider = WorkerEvProvider()
+            WorkerEvProvider.load().then { provider = it }
         }
 
         for ((i, col) in diceColumns.withIndex()) {

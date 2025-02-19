@@ -11,7 +11,7 @@ import kotlin.js.Promise
 import kotlin.random.Random
 
 
-class WorkerEvProvider : AsyncEvProvider {
+class WorkerEvProvider private constructor(resolve: (WorkerEvProvider) -> Unit) : AsyncEvProvider {
     private val worker: Worker
     private val runningTasks = mutableMapOf<Int, (EvProvider.Response) -> Unit>()
     private lateinit var wasmLoaded: () -> Unit
@@ -27,6 +27,7 @@ class WorkerEvProvider : AsyncEvProvider {
             when (response) {
                 is WorkerResponse.BestEvAndMoveResponse -> runningTasks.remove(response.id)?.invoke(response.response)
                 WorkerResponse.WasmLoaded -> wasmLoaded()
+                WorkerResponse.Started -> resolve(this@WorkerEvProvider)
             }
         }
     }
@@ -47,4 +48,10 @@ class WorkerEvProvider : AsyncEvProvider {
     }
 
     override fun loadWasm() = wasmLoadedPromise
+
+    companion object {
+        fun load() = Promise<WorkerEvProvider> { resolve, reject ->
+            WorkerEvProvider(resolve)
+        }
+    }
 }

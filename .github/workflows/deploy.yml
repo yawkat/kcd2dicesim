@@ -6,6 +6,7 @@ jobs:
     permissions:
       contents: read
       deployments: write
+      pull-requests: write
     environment: "cloudflare pages"
     steps:
       - uses: actions/checkout@v4
@@ -35,4 +36,3 @@ jobs:
           message: ":rocket: Preview deployed to ${{steps.cf_publish.outputs.deployment-url}}"
           comment-tag: deployment
           pr-number: "${{steps.pr.outputs.number}}"
-          github-token: '${{ secrets.MACHINES_GITHUB_TOKEN }}'

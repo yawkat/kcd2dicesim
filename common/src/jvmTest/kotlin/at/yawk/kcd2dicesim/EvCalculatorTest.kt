@@ -79,20 +79,26 @@ class EvCalculatorTest {
     fun `perf testing`() {
         DiceThrow // initialize
 
-        val start = System.nanoTime()
-        val bag = DieBag.of(
-            listOf(
-                SpecialDie.NORMAL_DIE,
-                SpecialDie.NORMAL_DIE,
-                SpecialDie.NORMAL_DIE,
-                SpecialDie.NORMAL_DIE,
-                SpecialDie.NORMAL_DIE,
-                SpecialDie.NORMAL_DIE
+        for (i in 0..3) {
+            val start = System.nanoTime()
+            val bag = DieBag.of(
+                listOf(
+                    SpecialDie.NORMAL_DIE,
+                    SpecialDie.NORMAL_DIE,
+                    SpecialDie.NORMAL_DIE,
+                    SpecialDie.NORMAL_DIE,
+                    SpecialDie.NORMAL_DIE,
+                    SpecialDie.NORMAL_DIE
+                )
             )
-        )
-        val calculator = EvCalculator(Score(3000), bag)
-        calculator.calculateEv(Score(0), bag)
-        val end = System.nanoTime()
-        println("Took ${(end - start) / 1000000.0} ms")
+            val calculator = EvCalculator(Score(3000), bag)
+            calculator.progressListener = { progress ->
+                val now = System.nanoTime()
+                println("Progress $progress at ${(now - start) / 1000000.0} ms")
+            }
+            calculator.calculateEv(Score(0), bag)
+            val end = System.nanoTime()
+            println("Took ${(end - start) / 1000000.0} ms")
+        }
     }
 }

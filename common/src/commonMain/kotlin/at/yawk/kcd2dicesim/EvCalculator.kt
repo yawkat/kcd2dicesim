@@ -1,5 +1,6 @@
 package at.yawk.kcd2dicesim
 
+import kotlinx.serialization.Serializable
 import kotlin.jvm.JvmInline
 import kotlin.math.roundToInt
 
@@ -84,7 +85,7 @@ class EvCalculator(private val limit: Score, private val allDice: DieBag) {
                 }
             }
             if (weight != 0) {
-                totalEv = totalEv.plus(bestEv(oldScore, thr, remainingDice, null), weight)
+                totalEv = totalEv.plus(bestEv(oldScore, thr, remainingDice), weight)
             }
         }
         var totalWeight = 1
@@ -94,7 +95,22 @@ class EvCalculator(private val limit: Score, private val allDice: DieBag) {
         return totalEv.div(totalWeight)
     }
 
-    fun bestEv(oldScore: Score, thr: DiceThrow, dice: DieBag, moveConsumer: ((Move) -> Unit)? = null): Ev {
+    fun bestEvAndMove(oldScore: Score, thr: DiceThrow, dice: DieBag): Pair<Ev, Move?> {
+        var bestMove: Move? = null
+        val ev = bestEvInline(oldScore, thr, dice) { bestMove = it }
+        return ev to bestMove
+    }
+
+    fun bestEv(oldScore: Score, thr: DiceThrow, dice: DieBag): Ev {
+        return bestEvInline(oldScore, thr, dice) { }
+    }
+
+    private inline fun bestEvInline(
+        oldScore: Score,
+        thr: DiceThrow,
+        dice: DieBag,
+        moveConsumer: (Move) -> Unit
+    ): Ev {
         val remainingDice = dice.size
         val peak = 1 shl remainingDice
         var validKeep = 0L
@@ -104,9 +120,7 @@ class EvCalculator(private val limit: Score, private val allDice: DieBag) {
             if (gained != Score(0)) {
                 val newScore = oldScore + gained
                 if (newScore >= limit) {
-                    if (moveConsumer != null) {
-                        moveConsumer(Move(keepMask.toByte(), false))
-                    }
+                    moveConsumer(Move(keepMask.toByte(), false))
                     return Ev.from(limit)
                 }
                 validKeep = validKeep or (1L shl keepMask)
@@ -114,7 +128,6 @@ class EvCalculator(private val limit: Score, private val allDice: DieBag) {
         }
 
         var bestEv = Ev.zero()
-        var bestMove: Move? = null
 
         for (keepMask in 0 until peak) {
             if (((validKeep ushr keepMask) and 1L) == 0L) continue
@@ -125,24 +138,18 @@ class EvCalculator(private val limit: Score, private val allDice: DieBag) {
             val newScoreEv = Ev.from(newScore)
             if (newScoreEv > bestEv) {
                 bestEv = newScoreEv
-                if (moveConsumer != null) {
-                    bestMove = Move(keepMask.toByte(), false)
-                }
+                moveConsumer(Move(keepMask.toByte(), false))
             }
             val cont = calculateEvInl(newScore, dice.removeMask(keepMask.toByte()))
             if (cont > bestEv) {
                 bestEv = cont
-                if (moveConsumer != null) {
-                    bestMove = Move(keepMask.toByte(), true)
-                }
+                moveConsumer(Move(keepMask.toByte(), true))
             }
-        }
-        if (moveConsumer != null && bestMove != null) {
-            moveConsumer(bestMove)
         }
         return bestEv
     }
 
+    @Serializable
     data class Move(val keepMask: Byte, val shouldContinue: Boolean)
 
     @JvmInline

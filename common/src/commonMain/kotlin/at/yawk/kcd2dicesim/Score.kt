@@ -1,11 +1,13 @@
 package at.yawk.kcd2dicesim
 
+import kotlinx.serialization.Serializable
 import kotlin.jvm.JvmInline
 
 /**
  * Optimized score implementation. Since scores are always a multiple of 50, this class removes that factor.
  */
 @JvmInline
+@Serializable
 value class Score private constructor(private val value: Byte) : Comparable<Score> {
     constructor(value: Int) : this((value / SCORE_DIVIDER).toByte())
 

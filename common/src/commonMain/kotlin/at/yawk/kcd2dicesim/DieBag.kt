@@ -1,6 +1,7 @@
 package at.yawk.kcd2dicesim
 
 import at.yawk.kcd2dicesim.DieBag.Companion.BITS_PER_DIE
+import kotlinx.serialization.Serializable
 import kotlin.jvm.JvmInline
 
 /**
@@ -9,6 +10,7 @@ import kotlin.jvm.JvmInline
  * Packing: [BITS_PER_DIE] bits per die. The bits are [SpecialDie.id].
  */
 @JvmInline
+@Serializable
 value class DieBag private constructor(private val value: Long) {
     internal val size: Int
         inline get() = value.toInt() and ((1 shl LENGTH_BITS) - 1)

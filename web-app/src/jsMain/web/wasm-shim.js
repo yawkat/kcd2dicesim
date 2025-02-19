@@ -1,6 +1,7 @@
-import {wasmCalculateEv, wasmGetMoveKeepMask, wasmGetMoveShouldContinue} from "./kcd2dicesim-common-wasm-wasm-js.mjs";
+import {wasmBestEvAndMove, wasmCreateWriter, wasmRead, wasmWrite} from "./kcd2dicesim-common-wasm-wasm-js.mjs";
 
-window.wasmCalculateEv = wasmCalculateEv;
-window.wasmGetMoveKeepMask = wasmGetMoveKeepMask;
-window.wasmGetMoveShouldContinue = wasmGetMoveShouldContinue;
-window.onWasmAvailable()
+self.wasmBestEvAndMove = wasmBestEvAndMove;
+self.wasmCreateWriter = wasmCreateWriter;
+self.wasmWrite = wasmWrite;
+self.wasmRead = wasmRead;
+self.onWasmAvailable()

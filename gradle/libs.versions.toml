@@ -1,6 +1,7 @@
 [versions]
 kvision = "8.2.0"
 kotlin = "2.1.0"
+kotlinx-serialization = "1.8.0"
 junit = "5.11.4"
 jmh-plugin = "0.7.2"
 
@@ -10,6 +11,7 @@ kvision-bootstrap = { group = "io.kvision", name = "kvision-bootstrap", version.
 kvision-testutils = { group = "io.kvision", name = "kvision-testutils", version.ref = "kvision" }
 kvision-state = { group = "io.kvision", name = "kvision-state", version.ref = "kvision" }
 kotlin-test-js = { group = "org.jetbrains.kotlin", name = "kotlin-test-js", version.ref = "kotlin" }
+kotlinx-serialization-json = { group = "org.jetbrains.kotlinx", name = "kotlinx-serialization-json", version.ref = "kotlinx-serialization" }
 junit-jupiter-engine = { group = "org.junit.jupiter", name = "junit-jupiter-engine", version.ref = "junit" }
 
 [plugins]

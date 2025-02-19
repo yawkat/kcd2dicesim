@@ -77,7 +77,7 @@ class EvCalculator(private val limit: Score, private val allDice: DieBag) {
             return calculateEv(oldScore, allDice)
         }
         var totalEv = Ev.WeightedSum.zero()
-        DiceThrow.forEachThrow(n) { thr ->
+        DiceThrow.forEachThrow(n, remainingDice.jokerMask) { thr ->
             var weight = 1
             if (!remainingDice.onlyNormalDice) {
                 for (i in 0 until n) {

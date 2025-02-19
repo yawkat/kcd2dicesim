@@ -52,6 +52,30 @@ class EvCalculatorTest {
     }
 
     @Test
+    fun `stability test with joker die`() {
+        // this test watches for breaking changes in the algorithm
+        val bag = DieBag.of(
+            listOf(
+                SpecialDie.NORMAL_DIE,
+                SpecialDie.NORMAL_DIE,
+                SpecialDie.NORMAL_DIE,
+                SpecialDie.NORMAL_DIE,
+                SpecialDie.NORMAL_DIE,
+                SpecialDie.SPECIAL_DICE.first { it.devilsHead },
+            )
+        )
+        val calculator = EvCalculator(Score(3000), bag)
+        val ev = calculator.calculateEv(Score(0), DieBag.of(
+            listOf(
+                SpecialDie.NORMAL_DIE,
+                SpecialDie.NORMAL_DIE,
+                SpecialDie.SPECIAL_DICE.first { it.devilsHead },
+            )
+        ))
+        Assertions.assertEquals(157.8125, ev.toDouble())
+    }
+
+    @Test
     @Disabled
     fun `best dice`() {
         for (d in SpecialDie.SPECIAL_DICE) {

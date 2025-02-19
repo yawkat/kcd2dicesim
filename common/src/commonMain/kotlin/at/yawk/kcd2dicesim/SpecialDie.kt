@@ -7,7 +7,7 @@ class SpecialDie private constructor(
     val devilsHead: Boolean = false
 ) {
     init {
-        require(weights.size == 6)
+        require(weights.size == if (devilsHead) 7 else 6)
         require(weights.all { it < (1 shl BITS_PER_WEIGHT) })
     }
 
@@ -37,13 +37,19 @@ class SpecialDie private constructor(
     companion object {
         private const val BITS_PER_WEIGHT = 4
 
+        /**
+         * bit set so that `(JOKER_DIE_SET >> id) & 1 == devilsHead`. This is const so it's statically set, but it's
+         * verified by a test.
+         */
+        const val JOKER_DIE_SET = 0x4000010L
+
         val NORMAL_DIE = SpecialDie(".", "Normal die", 1, 1, 1, 1, 1, 1)
         val SPECIAL_DICE = listOf(
             NORMAL_DIE,
             SpecialDie("Ar", "Aranka's die", 6, 1, 6, 1, 6, 1),
             SpecialDie("Cc", "Cautious cheater's die", 5, 3, 2, 3, 5, 3),
             SpecialDie("Ci", "Ci die", 3, 3, 3, 3, 3, 8),
-            SpecialDie("Dh", "Devil's head die", byteArrayOf(1, 1, 1, 1, 1, 1), true),
+            SpecialDie("Dh", "Devil's head die", byteArrayOf(0, 1, 1, 1, 1, 1, 1), true),
             SpecialDie("Dm", "Die of misfortune", 1, 5, 5, 5, 5, 1),
             SpecialDie("Ev", "Even die", 2, 8, 2, 8, 2, 8),
             SpecialDie("Fa", "Favourable die", 6, 0, 1, 1, 6, 4),
@@ -65,7 +71,7 @@ class SpecialDie private constructor(
             SpecialDie("Pa", "Painted die", 3, 1, 1, 1, 7, 3),
             SpecialDie("Pi", "Pie die", 6, 1, 3, 3, 0, 0),
             SpecialDie("Pr", "Premolar die", 1, 1, 1, 1, 1, 1),
-            SpecialDie("Sg", "Sad Greaser's Die", byteArrayOf(6, 6, 1, 1, 6, 3), devilsHead = true),
+            SpecialDie("Sg", "Sad Greaser's Die", byteArrayOf(0, 6, 1, 1, 6, 3, 6), devilsHead = true),
             SpecialDie("Sa", "Saint Antiochus' die", 0, 0, 9, 0, 0, 0),
             SpecialDie("Sh", "Shrinking die", 2, 1, 1, 1, 1, 3),
             SpecialDie("Ss", "St. Stephen's die", 1, 1, 1, 1, 1, 1),

@@ -13,7 +13,6 @@ import io.kvision.html.Div
 import io.kvision.html.InputType
 import io.kvision.html.Span
 import io.kvision.html.TAG
-import io.kvision.html.br
 import io.kvision.html.button
 import io.kvision.html.div
 import io.kvision.html.li
@@ -131,6 +130,11 @@ class App : Application() {
                     col.element = div(className = "col d-grid gap-1 g-1 pt-1 pb-1") {
                         val buttons = (0..6).map { j ->
                             button(if (j == 0) "/" else "$j") {
+                                if (j == 1) {
+                                    col.die.subscribe {
+                                        text = if (it.devilsHead) "D" else "1"
+                                    }
+                                }
                                 onClick {
                                     col.value.value = if (j == 0) null else (j - 1).toByte()
                                 }
@@ -184,7 +188,9 @@ class App : Application() {
                         val workColumns = diceColumns
                             .filter { it.value.value != null }
                             .sortedBy { it.die.value.id }
-                        val thr = DiceThrow(*workColumns.mapNotNull { it.value.value }.toByteArray())
+                        val thr = DiceThrow(*workColumns.mapNotNull {
+                            if (it.value.value == 0.toByte() && it.die.value.devilsHead) JOKER else it.value.value
+                        }.toByteArray())
                         val bagItems = workColumns.map { it.die.value }
                         val bag = DieBag.of(bagItems)
                         require(bag.toList() == bagItems) { "$bag $bagItems" } // should be ensured by the sort above, but double-check
@@ -271,10 +277,6 @@ class App : Application() {
                 p(className = "alert") {
                     span(die.shortName, className = "badge text-bg-secondary")
                     span(" " + die.name)
-                    if (die.devilsHead) {
-                        br()
-                        span("Note: Devil's Head is not yet implemented", className = "fst-italic")
-                    }
                     cursor = Cursor.POINTER
                     selection.subscribe {
                         if (selection.value == die) {

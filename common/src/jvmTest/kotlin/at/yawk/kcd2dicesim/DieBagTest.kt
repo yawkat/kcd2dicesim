@@ -71,4 +71,17 @@ class DieBagTest {
             DieBag.of(listOf(SpecialDie.NORMAL_DIE, SpecialDie.NORMAL_DIE, s5)).removeMask(0b011)
         )
     }
+
+    @Test
+    fun jokerMask() {
+        val dev = SpecialDie.SPECIAL_DICE.first { it.devilsHead }
+        Assertions.assertEquals(
+            0b100,
+            DieBag.of(listOf(SpecialDie.NORMAL_DIE, SpecialDie.NORMAL_DIE, dev)).jokerMask
+        )
+        Assertions.assertEquals(
+            0b110,
+            DieBag.of(listOf(SpecialDie.NORMAL_DIE, dev, dev)).jokerMask
+        )
+    }
 }

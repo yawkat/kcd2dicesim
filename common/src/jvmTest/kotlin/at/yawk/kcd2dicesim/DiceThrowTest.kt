@@ -47,4 +47,16 @@ class DiceThrowTest {
             DiceThrow(1, 1, 4, 4, 1).multiScore(),
         )
     }
+
+    @Test
+    fun joker() {
+        assertEquals(
+            Score(750),
+            DiceThrow(1, 2, 5, 3, JOKER).selectionScoreSingle(),
+        )
+        assertEquals(
+            Score(300),
+            DiceThrow(1, JOKER, 4, 4, 1).multiScore(),
+        )
+    }
 }

@@ -18,4 +18,15 @@ class SpecialDieTest {
     fun `short name unique`() {
         require(SpecialDie.SPECIAL_DICE.map { it.shortName }.toSet().size == SpecialDie.SPECIAL_DICE.size)
     }
+
+    @Test
+    fun `joker bit set`() {
+        var set = 0L
+        for ((i, die) in SpecialDie.SPECIAL_DICE.withIndex()) {
+            if (die.devilsHead) {
+                set = set or (1L shl i)
+            }
+        }
+        Assertions.assertEquals(set, SpecialDie.JOKER_DIE_SET, set.toString(16))
+    }
 }

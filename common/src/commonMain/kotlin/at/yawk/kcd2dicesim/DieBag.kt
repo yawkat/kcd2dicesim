@@ -16,9 +16,20 @@ value class DieBag private constructor(private val value: Long) {
         inline get() = value.toInt() and ((1 shl LENGTH_BITS) - 1)
 
     internal val onlyNormalDice: Boolean
-        inline get() = size.toLong() == value
+        inline get() = size.toLong() == value // all die IDs zero
 
-    operator fun get(index: Int) = SpecialDie.SPECIAL_DICE[((value ushr (BITS_PER_DIE * index + LENGTH_BITS)).toInt() and DIE_MASK.toInt())]
+    val jokerMask: Byte
+        get() {
+            var mask = 0
+            for (i in 0 until size) {
+                mask = mask or (((SpecialDie.JOKER_DIE_SET ushr getId(i)).toInt() and 1) shl i)
+            }
+            return mask.toByte()
+        }
+
+    operator fun get(index: Int) = SpecialDie.SPECIAL_DICE[getId(index)]
+
+    private fun getId(index: Int): Int = (value ushr (BITS_PER_DIE * index + LENGTH_BITS)).toInt() and DIE_MASK.toInt()
 
     fun remove(index: Int): DieBag {
         return removeMask((1 shl index).toByte())

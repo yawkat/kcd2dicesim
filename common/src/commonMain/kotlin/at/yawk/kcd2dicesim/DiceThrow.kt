@@ -3,6 +3,8 @@ package at.yawk.kcd2dicesim
 import kotlinx.serialization.Serializable
 import kotlin.jvm.JvmInline
 
+const val JOKER = 6.toByte()
+
 /**
  * Set of thrown dice values (up to six dice, 1-6 eyes each). Internal encoding is three bits per die.
  */
@@ -10,7 +12,7 @@ import kotlin.jvm.JvmInline
 @Serializable
 value class DiceThrow private constructor(val value: Int) {
     /**
-     * Create a new throw. Inputs must be in `0..5`
+     * Create a new throw. Inputs must be in `0..6`
      */
     constructor(vararg values: Byte) : this(combine(values))
 
@@ -31,17 +33,28 @@ value class DiceThrow private constructor(val value: Int) {
         get() {
             for (i in 0 until length) {
                 val die = get(i)
-                if (die < 0 || die > 5) {
+                if (die < 0 || die > JOKER) {
                     return false
                 }
             }
             return true
         }
 
+    private fun valid(jokerMask: Byte): Boolean {
+        for (i in 0 until length) {
+            val j = (jokerMask.toInt() ushr i) and 1
+            val die = get(i)
+            if (die < j || die > 5 + j) {
+                return false
+            }
+        }
+        return true
+    }
+
     /**
-     * Get the die value at the given index (`0..5`).
+     * Get the die value at the given index (`0..6`).
      */
-    operator fun get(i: Int): Byte = (((value ushr (i * 3)) and 7) - 1).toByte()
+    operator fun get(i: Int): Byte = (((value ushr (i * BITS_PER_DIE)) and ((1 shl BITS_PER_DIE) - 1)) - 1).toByte()
 
     /**
      * Sort the dice values.
@@ -53,7 +66,7 @@ value class DiceThrow private constructor(val value: Int) {
     override fun toString() = "DiceThrow" + (toArray().joinToString(",", "[", "]"))
 
     private object Caches {
-        const val CACHE_SIZE = 1 shl (3 * 6)
+        const val CACHE_SIZE = 1 shl (BITS_PER_DIE * 6)
 
         val SORTED_CACHE = IntArray(CACHE_SIZE)
 
@@ -72,12 +85,25 @@ value class DiceThrow private constructor(val value: Int) {
 
         val MULTI_SCORE = ByteArray(CACHE_SIZE)
 
+        private fun addSingleScore(thr: DiceThrow, score: Score) {
+            SINGLE_SCORE[thr.value] = score.toCompactByte()
+
+            for (mask in 1..((1 shl thr.length) - 2)) {
+                val masked = thr.mask(mask.toByte())
+                val jokersToAdd = thr.length - masked.length
+                val jokersMask = ((1 shl (jokersToAdd * BITS_PER_DIE)) - 1) shl (masked.length * BITS_PER_DIE)
+                val combined = DiceThrow(jokersMask or masked.value)
+                SINGLE_SCORE[combined.value] = score.toCompactByte()
+            }
+        }
+
         init {
-            SINGLE_SCORE[DiceThrow(0.toByte()).value] = Score(100).toCompactByte()
-            SINGLE_SCORE[DiceThrow(4.toByte()).value] = Score(50).toCompactByte()
-            SINGLE_SCORE[DiceThrow(0, 1, 2, 3, 4).value] = Score(500).toCompactByte()
-            SINGLE_SCORE[DiceThrow(1, 2, 3, 4, 5).value] = Score(750).toCompactByte()
-            SINGLE_SCORE[DiceThrow(0, 1, 2, 3, 4, 5).value] = Score(1500).toCompactByte()
+            addSingleScore(DiceThrow(0.toByte()), Score(100))
+            addSingleScore(DiceThrow(4.toByte()), Score(50))
+
+            addSingleScore(DiceThrow(0, 1, 2, 3, 4), Score(500))
+            addSingleScore(DiceThrow(1, 2, 3, 4, 5), Score(750))
+            addSingleScore(DiceThrow(0, 1, 2, 3, 4, 5), Score(1500))
             for (j in 0..5) {
                 val i = j.toByte()
                 val baseScore = when (j) {
@@ -89,10 +115,10 @@ value class DiceThrow private constructor(val value: Int) {
                     5 -> Score(600)
                     else -> throw AssertionError()
                 }
-                SINGLE_SCORE[DiceThrow(i, i, i).value] = baseScore.toCompactByte()
-                SINGLE_SCORE[DiceThrow(i, i, i, i).value] = (baseScore * 2).toCompactByte()
-                SINGLE_SCORE[DiceThrow(i, i, i, i, i).value] = (baseScore * 4).toCompactByte()
-                SINGLE_SCORE[DiceThrow(i, i, i, i, i, i).value] = (baseScore * 8).toCompactByte()
+                addSingleScore(DiceThrow(i, i, i), baseScore)
+                addSingleScore(DiceThrow(i, i, i, i), (baseScore * 2))
+                addSingleScore(DiceThrow(i, i, i, i, i), (baseScore * 4))
+                addSingleScore(DiceThrow(i, i, i, i, i, i), (baseScore * 8))
             }
             for (i in 0 until CACHE_SIZE) {
                 DiceThrow(i).initCaches()
@@ -105,17 +131,19 @@ value class DiceThrow private constructor(val value: Int) {
     }
 
     companion object {
+        private const val BITS_PER_DIE = 3
+
         fun maskForNumberOfDice(numberOfDice: Int): Int {
-            return (1 shl (numberOfDice * 3)) - 1
+            return (1 shl (numberOfDice * BITS_PER_DIE)) - 1
         }
 
         // internal to access private constructor
-        internal inline fun forEachThrow(numberOfDice: Int, f: (DiceThrow) -> Unit) {
+        internal inline fun forEachThrow(numberOfDice: Int, jokerMask: Byte = 0, f: (DiceThrow) -> Unit) {
             val lo = maskForNumberOfDice(numberOfDice - 1) + 1 // this works by accident for numberOfDice == 0
             val hi = maskForNumberOfDice(numberOfDice)
             for (i in lo..hi) {
                 val thr = DiceThrow(i)
-                if (thr.valid) {
+                if (thr.valid(jokerMask)) {
                     f(thr)
                 }
             }
@@ -124,7 +152,7 @@ value class DiceThrow private constructor(val value: Int) {
         fun combine(arr: ByteArray): Int {
             var i = 0
             for (byte in arr.reversed()) {
-                i = (i shl 3) + (byte + 1)
+                i = (i shl BITS_PER_DIE) + (byte + 1)
             }
             return i
         }
@@ -149,7 +177,7 @@ value class DiceThrow private constructor(val value: Int) {
             val selected = ((mask.toInt() ushr i) and 1) == 1
             if (!selected) {
                 val clipMask = maskForNumberOfDice(i)
-                masked = (masked and clipMask) or ((masked ushr 3) and clipMask.inv())
+                masked = (masked and clipMask) or ((masked ushr BITS_PER_DIE) and clipMask.inv())
             }
         }
         return DiceThrow(masked)
